@@ -6,15 +6,18 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - "kafka"
+      kafka:
+        condition: service_healthy
 
   storage:
     image: storage
     ports:
       - "8090:8090"
     depends_on:
-      - "kafka"
-      - "db"
+      kafka:
+        condition: service_healthy
+      db:
+        condition: service_started
 
   processing:
     image: processing
@@ -29,7 +32,8 @@ services:
     ports:
       - "8110:8110"
     depends_on:
-      - "kafka"
+      kafka:
+        condition: service_healthy
 
   zookeeper:
     image: wurstmeister/zookeeper
@@ -57,6 +61,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - zookeeper
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "kafka-topics.sh --list --bootstrap-server localhost:9092",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   db:
     image: mysql:5.7
