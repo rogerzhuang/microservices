@@ -3,6 +3,7 @@ version: "3.8"
 services:
   receiver:
     image: receiver
+    restart: always
     ports:
       - "8080:8080"
     depends_on:
@@ -11,6 +12,7 @@ services:
 
   storage:
     image: storage
+    restart: always
     ports:
       - "8090:8090"
     depends_on:
@@ -21,6 +23,7 @@ services:
 
   processing:
     image: processing
+    restart: always
     network_mode: "host"
     ports:
       - "8100:8100"
@@ -29,6 +32,7 @@ services:
 
   analyzer:
     image: analyzer
+    restart: always
     ports:
       - "8110:8110"
     depends_on:
