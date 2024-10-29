@@ -177,4 +177,4 @@ if __name__ == "__main__":
     t1 = Thread(target=process_messages)
     t1.setDaemon(True)
     t1.start()
-    app.run(port=8090)
+    app.run(port=8090, host="0.0.0.0")
