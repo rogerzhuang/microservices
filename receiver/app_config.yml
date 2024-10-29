@@ -1,0 +1,9 @@
+version: 1
+air_quality:
+  url: http://localhost:8090/air-quality
+weather:
+  url: http://localhost:8090/weather
+events:
+  hostname: acit3855-kafka.westus.cloudapp.azure.com
+  port: 9092
+  topic: events

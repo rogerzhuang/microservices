@@ -1,0 +1,6 @@
+version: 1
+events:
+  hostname: acit3855-kafka.westus.cloudapp.azure.com
+  port: 9092
+  topic: events
+

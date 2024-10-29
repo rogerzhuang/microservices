@@ -1,0 +1,237 @@
+openapi: 3.0.0
+info:
+  description: This API provides analyzer info for smart cities data
+  version: "1.0.0"
+  title: Smart Cities Analyzer API
+  contact:
+    email: zzhuang7@my.bcit.ca
+paths:
+  /air-quality:
+    get:
+      summary: gets an air quality reading from history
+      operationId: app.get_air_quality_reading
+      description: Gets air quality readings from the event store
+      parameters:
+        - name: index
+          in: query
+          description: Gets the air quality reading at the index in the event store
+          schema:
+            type: integer
+          required: true
+          example: 0
+      responses:
+        "200":
+          description: Successfully returned an air quality event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AirQualityReading"
+              example:
+                type: air_quality
+                datetime: "2024-09-03T10:00:00Z"
+                payload:
+                  reading_id: "123e4567-e89b-12d3-a456-426614174000"
+                  sensor_id: "AQ-001"
+                  timestamp: "2024-09-03T10:00:00Z"
+                  pm2_5_concentration: 12.5
+                  pm10_concentration: 25.3
+                  co2_level: 400.2
+                  o3_level: 0.03
+                  trace_id: "123e4567-e89b-12d3-a456-426614174000"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Invalid index provided"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Air quality reading not found at the specified index"
+  /weather:
+    get:
+      summary: gets a weather reading from history
+      operationId: app.get_weather_reading
+      description: Gets weather reading from the event store
+      parameters:
+        - name: index
+          in: query
+          description: Gets the weather reading at the index in the event store
+          schema:
+            type: integer
+          required: true
+          example: 0
+      responses:
+        "200":
+          description: Successfully returned a weather event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeatherReading"
+              example:
+                type: weather
+                datetime: "2024-09-03T10:05:00Z"
+                payload:
+                  reading_id: "987e6543-e21b-34d3-a456-426614174000"
+                  sensor_id: "WS-001"
+                  timestamp: "2024-09-03T10:05:00Z"
+                  temperature: 22.5
+                  humidity: 60.2
+                  wind_speed: 5.4
+                  noise_level: 55.3
+                  trace_id: "123e4567-e89b-12d3-a456-426614174000"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Invalid index provided"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Weather reading not found at the specified index"
+  /stats:
+    get:
+      summary: gets the event stats
+      operationId: app.get_event_stats
+      description: Gets the stats of the history events
+      responses:
+        "200":
+          description: Successfully returned event stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stats"
+              example:
+                num_air_quality: 100
+                num_weather: 150
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Error retrieving event stats"
+components:
+  schemas:
+    AirQualityReading:
+      type: object
+      properties:
+        type:
+          type: string
+          example: air_quality
+        datetime:
+          type: string
+          format: date-time
+          example: "2024-09-03T10:00:00Z"
+        payload:
+          $ref: "#/components/schemas/AirQualityData"
+    WeatherReading:
+      type: object
+      properties:
+        type:
+          type: string
+          example: weather
+        datetime:
+          type: string
+          format: date-time
+          example: "2024-09-03T10:05:00Z"
+        payload:
+          $ref: "#/components/schemas/WeatherData"
+    AirQualityData:
+      type: object
+      properties:
+        reading_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        sensor_id:
+          type: string
+          example: "AQ-001"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-09-03T10:00:00Z"
+        pm2_5_concentration:
+          type: number
+          example: 12.5
+        pm10_concentration:
+          type: number
+          example: 25.3
+        co2_level:
+          type: number
+          example: 400.2
+        o3_level:
+          type: number
+          example: 0.03
+        trace_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+    WeatherData:
+      type: object
+      properties:
+        reading_id:
+          type: string
+          format: uuid
+          example: "987e6543-e21b-34d3-a456-426614174000"
+        sensor_id:
+          type: string
+          example: "WS-001"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-09-03T10:05:00Z"
+        temperature:
+          type: number
+          example: 22.5
+        humidity:
+          type: number
+          example: 60.2
+        wind_speed:
+          type: number
+          example: 5.4
+        noise_level:
+          type: number
+          example: 55.3
+        trace_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+    Stats:
+      type: object
+      properties:
+        num_air_quality:
+          type: integer
+          example: 100
+        num_weather:
+          type: integer
+          example: 150

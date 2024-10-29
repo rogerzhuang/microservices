@@ -1,0 +1,199 @@
+openapi: 3.0.0
+info:
+  title: Smart Cities API
+  description: This API receives readings from sensors of smart cities
+  version: 1.0.0
+  contact:
+    email: zzhuang7@my.bcit.ca
+tags:
+  - name: devices
+    description: Operations related to sensor devices
+
+paths:
+  /air-quality:
+    get:
+      tags:
+        - devices
+      summary: gets new air quality readings
+      operationId: app.get_air_quality_readings
+      description: Gets air quality readings added between the start and end timestamps
+      parameters:
+        - name: start_timestamp
+          in: query
+          description: Start timestamp for the range of readings
+          schema:
+            type: string
+            format: date-time
+          example: 2024-09-03T10:00:00Z
+        - name: end_timestamp
+          in: query
+          description: End timestamp for the range of readings
+          schema:
+            type: string
+            format: date-time
+          example: 2024-09-03T11:00:00Z
+      responses:
+        '200':
+          description: Successfully returned a list of air quality events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AirQualityData'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /weather:
+    get:
+      tags:
+        - devices
+      summary: gets new weather readings
+      operationId: app.get_weather_readings
+      description: Gets weather readings added between the start and end timestamps
+      parameters:
+        - name: start_timestamp
+          in: query
+          description: Start timestamp for the range of readings
+          schema:
+            type: string
+            format: date-time
+          example: 2024-09-03T10:00:00Z
+        - name: end_timestamp
+          in: query
+          description: End timestamp for the range of readings
+          schema:
+            type: string
+            format: date-time
+          example: 2024-09-03T11:00:00Z
+      responses:
+        '200':
+          description: Successfully returned a list of weather events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WeatherData'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+components:
+  schemas:
+    AirQualityData:
+      type: object
+      required:
+        - co2_level
+        - o3_level
+        - pm10_concentration
+        - pm2_5_concentration
+        - reading_id
+        - sensor_id
+        - timestamp
+        - trace_id
+      properties:
+        reading_id:
+          type: string
+          description: Unique identifier for the air quality reading
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        sensor_id:
+          type: string
+          description: Unique identifier for the air quality sensor
+          example: AQ-001
+        timestamp:
+          type: string
+          description: The time the reading was taken
+          format: date-time
+          example: 2024-09-03T10:00:00Z
+        pm2_5_concentration:
+          type: number
+          description: PM2.5 concentration in µg/m³
+          format: float
+          example: 12.5
+        pm10_concentration:
+          type: number
+          description: PM10 concentration in µg/m³
+          format: float
+          example: 25.3
+        co2_level:
+          type: number
+          description: CO2 concentration level in ppm
+          format: float
+          example: 400.2
+        o3_level:
+          type: number
+          description: Ozone concentration level in ppm
+          format: float
+          example: 0.03
+        trace_id:
+          type: string
+          description: Unique identifier for tracing the event across services
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+
+    WeatherData:
+      type: object
+      required:
+        - humidity
+        - noise_level
+        - reading_id
+        - sensor_id
+        - temperature
+        - timestamp
+        - wind_speed
+        - trace_id
+      properties:
+        reading_id:
+          type: string
+          description: Unique identifier for the weather reading
+          format: uuid
+          example: 987e6543-e21b-34d3-a456-426614174000
+        sensor_id:
+          type: string
+          description: Unique identifier for the weather sensor
+          example: WS-001
+        timestamp:
+          type: string
+          description: The time the reading was taken
+          format: date-time
+          example: 2024-09-03T10:05:00Z
+        temperature:
+          type: number
+          description: Ambient temperature in degrees Celsius
+          format: float
+          example: 22.5
+        humidity:
+          type: number
+          description: Relative humidity as a percentage
+          format: float
+          example: 60.2
+        wind_speed:
+          type: number
+          description: Wind speed in meters per second
+          format: float
+          example: 5.4
+        noise_level:
+          type: number
+          description: Noise level in decibels (dB)
+          format: float
+          example: 55.3
+        trace_id:
+          type: string
+          description: Unique identifier for tracing the event across services
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
