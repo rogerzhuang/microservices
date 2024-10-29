@@ -1,4 +1,6 @@
-connexion==2.7.0
-swagger-ui-bundle==0.0.8
-requests==2.25.1
-pykafka==2.4.0
+connexion[flask,uvicorn]==3.1.0
+swagger-ui-bundle==1.1.0
+requests==2.32.3
+pykafka==2.8.0
+flask==3.0.3
+uvicorn==0.30.6
