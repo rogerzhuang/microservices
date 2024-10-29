@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  receiver:
+    image: receiver
+    ports:
+      - "8080:8080"
+    depends_on:
+      - "kafka"
+
+  storage:
+    image: storage
+    ports:
+      - "8090:8090"
+    depends_on:
+      - "kafka"
+      - "db"
+
+  processing:
+    image: processing
+    network_mode: "host"
+    ports:
+      - "8100:8100"
+    depends_on:
+      - "storage"
+
+  analyzer:
+    image: analyzer
+    ports:
+      - "8110:8110"
+    depends_on:
+      - "kafka"
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    restart: always
+    ports:
+      - "2181"
+    hostname: zookeeper
+
+  kafka:
+    image: wurstmeister/kafka
+    restart: always
+    command: [start-kafka.sh]
+    ports:
+      - "9092:9092"
+    hostname: kafka
+    environment:
+      KAFKA_CREATE_TOPICS: "events:1:1"
+      KAFKA_ADVERTISED_HOST_NAME: acit3855-kafka.westus.cloudapp.azure.com
+      KAFKA_LISTENERS: INSIDE://:29092,OUTSIDE://:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:29092,OUTSIDE://acit3855-kafka.westus.cloudapp.azure.com:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - zookeeper
+
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_DATABASE: "events"
+      MYSQL_USER: "roger"
+      MYSQL_PASSWORD: "axl320n24h"
+      MYSQL_ROOT_PASSWORD: "axl320n24h"
+    ports:
+      - "3306:3306"
+    expose:
+      - "3306"
+    volumes:
+      - my-db:/var/lib/mysql
+
+volumes:
+  my-db:
