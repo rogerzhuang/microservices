@@ -8,6 +8,7 @@ import datetime
 import json
 from apscheduler.schedulers.background import BackgroundScheduler
 import os
+from flask_cors import CORS
 
 with open('app_config.yml', 'r') as f:
     app_config = yaml.safe_load(f.read())
@@ -33,7 +34,8 @@ def get_stats():
         "num_air_quality_readings": stats["num_air_quality_readings"],
         "num_weather_readings": stats["num_weather_readings"],
         "max_pm25_concentration": stats["max_pm25_concentration"],
-        "avg_temperature": stats["avg_temperature"]
+        "avg_temperature": stats["avg_temperature"],
+        "last_updated": stats["last_updated"]
     }
     
     logger.debug(f"Statistics: {response_data}")
@@ -102,6 +104,7 @@ def init_scheduler():
     sched.start()
 
 app = connexion.FlaskApp(__name__, specification_dir='')
+CORS(app.app)
 app.add_api("openapi.yml", strict_validation=True, validate_responses=True)
 
 if __name__ == "__main__":

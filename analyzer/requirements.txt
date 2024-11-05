@@ -4,3 +4,4 @@ requests==2.32.3
 pykafka==2.8.0
 flask==3.0.3
 uvicorn==0.30.6
+flask-cors==3.0.10

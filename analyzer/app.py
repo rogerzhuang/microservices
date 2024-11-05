@@ -5,6 +5,7 @@ import logging
 import logging.config
 import json
 from pykafka import KafkaClient
+from flask_cors import CORS
 
 # Load application configurations
 with open('app_config.yml', 'r') as f:
@@ -105,6 +106,7 @@ def get_event_stats():
         return {"message": "Error retrieving stats"}, 500
 
 app = connexion.FlaskApp(__name__, specification_dir='')
+CORS(app.app)
 app.add_api("openapi.yml", strict_validation=True, validate_responses=True)
 
 if __name__ == "__main__":
