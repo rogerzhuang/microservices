@@ -15,6 +15,8 @@ import json
 from pykafka import KafkaClient
 from pykafka.common import OffsetType
 from threading import Thread
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.pool import QueuePool
 
 with open('log_config.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
@@ -30,7 +32,13 @@ datastore_config = app_config['datastore']
 logger.info(f"Connecting to DB. Hostname:{datastore_config['hostname']}, Port:{datastore_config['port']}")
 
 # DB_ENGINE = create_engine("sqlite:///smart_city.sqlite")
-DB_ENGINE = create_engine(f"mysql+pymysql://{datastore_config['user']}:{datastore_config['password']}@{datastore_config['hostname']}:{datastore_config['port']}/{datastore_config['db']}")
+DB_ENGINE = create_engine(
+    f"mysql+pymysql://{datastore_config['user']}:{datastore_config['password']}@{datastore_config['hostname']}:{datastore_config['port']}/{datastore_config['db']}",
+    pool_size=5,
+    max_overflow=10,
+    pool_recycle=3600,  # Recycle connections after 1 hour
+    pool_pre_ping=True  # Enable connection health checks
+)
 Base.metadata.bind = DB_ENGINE
 DB_SESSION = sessionmaker(bind=DB_ENGINE)
 
@@ -131,44 +139,51 @@ def process_messages():
     topic = client.topics[str.encode(app_config["events"]["topic"])]
     
     consumer = topic.get_simple_consumer(consumer_group=b'event_group',
-                                         reset_offset_on_start=False,
-                                         auto_offset_reset=OffsetType.LATEST)
+                                       reset_offset_on_start=False,
+                                       auto_offset_reset=OffsetType.LATEST)
     
     for msg in consumer:
-        msg_str = msg.value.decode('utf-8')
-        msg = json.loads(msg_str)
-        logger.info(f"Message: {msg}")
-        payload = msg["payload"]
-        
         session = DB_SESSION()
-        
-        if msg["type"] == "air_quality":
-            aq = AirQuality(payload['trace_id'],
-                            payload['reading_id'],
-                            payload['sensor_id'],
-                            payload['timestamp'],
-                            payload['pm2_5_concentration'],
-                            payload['pm10_concentration'],
-                            payload['co2_level'],
-                            payload['o3_level'])
-            session.add(aq)
-            logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
-        elif msg["type"] == "weather":
-            weather = Weather(payload['trace_id'],
+        try:
+            msg_str = msg.value.decode('utf-8')
+            msg = json.loads(msg_str)
+            logger.info(f"Message: {msg}")
+            payload = msg["payload"]
+            
+            if msg["type"] == "air_quality":
+                aq = AirQuality(payload['trace_id'],
                               payload['reading_id'],
                               payload['sensor_id'],
                               payload['timestamp'],
-                              payload['temperature'],
-                              payload['humidity'],
-                              payload['wind_speed'],
-                              payload['noise_level'])
-            session.add(weather)
-            logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
-        
-        session.commit()
-        session.close()
-        
-        consumer.commit_offsets()
+                              payload['pm2_5_concentration'],
+                              payload['pm10_concentration'],
+                              payload['co2_level'],
+                              payload['o3_level'])
+                session.add(aq)
+                logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
+            elif msg["type"] == "weather":
+                weather = Weather(payload['trace_id'],
+                                payload['reading_id'],
+                                payload['sensor_id'],
+                                payload['timestamp'],
+                                payload['temperature'],
+                                payload['humidity'],
+                                payload['wind_speed'],
+                                payload['noise_level'])
+                session.add(weather)
+                logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
+            
+            session.commit()
+            consumer.commit_offsets()
+            
+        except OperationalError as e:
+            logger.error(f"Database operational error: {str(e)}")
+            session.rollback()
+        except Exception as e:
+            logger.error(f"Processing error: {str(e)}")
+            session.rollback()
+        finally:
+            session.close()
 
 app = connexion.FlaskApp(__name__, specification_dir='')
 app.add_api("openapi.yml", strict_validation=True, validate_responses=True)
