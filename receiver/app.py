@@ -30,18 +30,11 @@ class KafkaProducerWrapper:
         self.check_interval = 60  # Check connection every 60 seconds
 
     def connect(self):
-        """Establish connection to Kafka with specific configs"""
+        """Establish connection to Kafka"""
         try:
             self.client = KafkaClient(hosts=f"{self.host}:{self.port}")
             topic = self.client.topics[str.encode(self.topic_name)]
-            self.producer = topic.get_sync_producer(
-                delivery_reports=True,
-                retry_backoff_ms=100,
-                request_timeout_ms=10000,  # 10 seconds timeout
-                required_acks=1,  # Wait for leader acknowledgment
-                compression=None,  # No compression for faster processing
-                max_retries=3
-            )
+            self.producer = topic.get_sync_producer()
             self.last_checked = time.time()
             logger.info("Successfully connected to Kafka")
         except Exception as e:
@@ -63,32 +56,18 @@ class KafkaProducerWrapper:
                 self.connect()
 
     def produce_message(self, message):
-        """Produce message with enhanced error handling"""
+        """Produce message with connection retry"""
         max_retries = 3
-        backoff = 0.1  # Start with 100ms backoff
-        
         for attempt in range(max_retries):
             try:
                 self.ensure_connection()
-                
-                # Encode message and send with timeout
-                msg = message.encode('utf-8')
-                self.producer.produce(msg)
+                self.producer.produce(message.encode('utf-8'))
                 return
-                
             except Exception as e:
-                logger.error(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+                logger.error(f"Failed to produce message: {str(e)}")
                 if attempt == max_retries - 1:
-                    logger.error("All retries failed, raising exception")
                     raise
-                
-                # Exponential backoff between retries
-                time.sleep(backoff)
-                backoff *= 2  # Double the backoff time for next retry
-                
-                # Force reconnection on next attempt
-                self.producer = None
-                self.client = None
+                time.sleep(1)
 
 # Create a single producer instance
 kafka_producer = KafkaProducerWrapper(
