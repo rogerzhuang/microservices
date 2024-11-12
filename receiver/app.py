@@ -1,104 +1,113 @@
 import connexion
 from connexion import NoContent
+import yaml
 import logging
 import logging.config
-import yaml
-import uuid
-import datetime
 import json
 from pykafka import KafkaClient
-from pykafka.exceptions import SocketDisconnectedError, LeaderNotAvailable
-import time
+from flask_cors import CORS
 
+# Load application configurations
 with open('app_config.yml', 'r') as f:
     app_config = yaml.safe_load(f.read())
 
+# Load logging configuration
 with open('log_config.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
     logging.config.dictConfig(log_config)
 
 logger = logging.getLogger('basicLogger')
 
-def get_producer():
-    """Get a new producer instance with optimized settings"""
-    client = KafkaClient(hosts=f"{app_config['events']['hostname']}:{app_config['events']['port']}")
-    topic = client.topics[str.encode(app_config['events']['topic'])]
-    return topic.get_sync_producer(
-        min_queued_messages=1,        # Send messages immediately
-        max_queued_messages=10,       # Keep queue small
-        linger_ms=0,                  # Don't wait for batching
-        delivery_reports=False,       # Disable delivery reports since we're using sync=True
-        required_acks=1,              # Only wait for leader acknowledgment
-        ack_timeout_ms=45000,         # Shorter timeout for acks
-        pending_timeout_ms=60000,     # Reasonable timeout for pending messages
-        retry_backoff_ms=100         # Short backoff between retries
-    )
+def get_air_quality_reading(index):
+    """ Get Air Quality Reading in History """
+    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
+    client = KafkaClient(hosts=hostname)
+    topic = client.topics[str.encode(app_config["events"]["topic"])]
+    
+    consumer = topic.get_simple_consumer(reset_offset_on_start=True,
+                                         consumer_timeout_ms=1000)
+    logger.info(f"Retrieving air quality reading at index {index}")
+    
+    try:
+        air_quality_events = []
+        for msg in consumer:
+            msg_str = msg.value.decode('utf-8')
+            msg = json.loads(msg_str)
+            if msg['type'] == 'air_quality':
+                air_quality_events.append(msg)
+            
+            if len(air_quality_events) > index:
+                return air_quality_events[index], 200
+        
+        logger.error(f"Could not find air quality reading at index {index}")
+        return {"message": "Not Found"}, 404
+    except:
+        logger.error("No more messages found")
+        logger.error(f"Could not find air quality reading at index {index}")
+        return {"message": "Not Found"}, 404
 
-# Initial producer setup
-producer = get_producer()
+def get_weather_reading(index):
+    """ Get Weather Reading in History """
+    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
+    client = KafkaClient(hosts=hostname)
+    topic = client.topics[str.encode(app_config["events"]["topic"])]
+    
+    consumer = topic.get_simple_consumer(reset_offset_on_start=True,
+                                         consumer_timeout_ms=1000)
+    logger.info(f"Retrieving weather reading at index {index}")
+    
+    try:
+        weather_events = []
+        for msg in consumer:
+            msg_str = msg.value.decode('utf-8')
+            msg = json.loads(msg_str)
+            if msg['type'] == 'weather':
+                weather_events.append(msg)
+            
+            if len(weather_events) > index:
+                return weather_events[index], 200
+        
+        logger.error(f"Could not find weather reading at index {index}")
+        return {"message": "Not Found"}, 404
+    except:
+        logger.error("No more messages found")
+        logger.error(f"Could not find weather reading at index {index}")
+        return {"message": "Not Found"}, 404
 
-def produce_message(msg_str):
-    """Produce a message with error handling"""
-    global producer
-    max_retries = 3
+def get_event_stats():
+    """ Get event stats """
+    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
+    client = KafkaClient(hosts=hostname)
+    topic = client.topics[str.encode(app_config["events"]["topic"])]
     
-    for attempt in range(max_retries):
-        try:
-            producer.produce(msg_str.encode('utf-8'))
-            return
-        except (SocketDisconnectedError, LeaderNotAvailable) as e:
-            logger.warning(f"Connection issue (attempt {attempt + 1}): {str(e)}")
-            try:
-                # Proper cleanup of old producer
-                producer.stop()
-                # Get new producer
-                producer = get_producer()
-                # Ensure it's started
-                producer.start()
-            except Exception as e:
-                logger.error(f"Failed to reconnect: {str(e)}")
-                if attempt == max_retries - 1:
-                    raise
-            time.sleep(0.1 * (attempt + 1))  # Progressive backoff
-
-def submit_air_quality_data(body):
-    """ Forwards air quality data to Kafka """
-    trace_id = str(uuid.uuid4())
-    logger.info(f"Received event air quality request with a trace id of {trace_id}")
+    consumer = topic.get_simple_consumer(reset_offset_on_start=True,
+                                         consumer_timeout_ms=1000)
+    logger.info("Retrieving event stats")
     
-    body['trace_id'] = trace_id
-    
-    msg = {
-        "type": "air_quality",
-        "datetime": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-        "payload": body
-    }
-    msg_str = json.dumps(msg)
-    produce_message(msg_str)
-    
-    logger.info(f"Returned event air quality response (Id: {trace_id}) with status 201")
-    return NoContent, 201
-
-def submit_weather_data(body):
-    """ Forwards weather data to Kafka """
-    trace_id = str(uuid.uuid4())
-    logger.info(f"Received event weather request with a trace id of {trace_id}")
-    
-    body['trace_id'] = trace_id
-    
-    msg = {
-        "type": "weather",
-        "datetime": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-        "payload": body
-    }
-    msg_str = json.dumps(msg)
-    produce_message(msg_str)
-    
-    logger.info(f"Returned event weather response (Id: {trace_id}) with status 201")
-    return NoContent, 201
+    try:
+        num_air_quality = 0
+        num_weather = 0
+        for msg in consumer:
+            msg_str = msg.value.decode('utf-8')
+            msg = json.loads(msg_str)
+            if msg['type'] == 'air_quality':
+                num_air_quality += 1
+            elif msg['type'] == 'weather':
+                num_weather += 1
+        
+        stats = {
+            "num_air_quality": num_air_quality,
+            "num_weather": num_weather
+        }
+        logger.info(f"Retrieved event stats: {stats}")
+        return stats, 200
+    except:
+        logger.error("Error retrieving event stats")
+        return {"message": "Error retrieving stats"}, 500
 
 app = connexion.FlaskApp(__name__, specification_dir='')
+CORS(app.app)
 app.add_api("openapi.yml", strict_validation=True, validate_responses=True)
 
 if __name__ == "__main__":
-    app.run(port=8080, host="0.0.0.0")
+    app.run(port=8110, host="0.0.0.0")
