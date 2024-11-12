@@ -28,7 +28,7 @@ class KafkaProducerWrapper:
         self.client = None
         self.producer = None
         self.last_checked = None
-        self.check_interval = 15  # Reduced to 15 seconds for more frequent checks
+        self.check_interval = 15
         self.running = False
         self.heartbeat_thread = None
 
@@ -44,6 +44,8 @@ class KafkaProducerWrapper:
                 retry_backoff_ms=100
             )
             self.last_checked = time.time()
+            if not self.heartbeat_thread or not self.heartbeat_thread.is_alive():
+                self.start_heartbeat()
             logger.info("Successfully connected to Kafka")
         except Exception as e:
             logger.error(f"Failed to connect to Kafka: {str(e)}")
@@ -57,6 +59,20 @@ class KafkaProducerWrapper:
         self.heartbeat_thread.start()
         logger.info("Kafka heartbeat thread started")
 
+    def ensure_connection(self):
+        """Ensure the connection is alive and reconnect if necessary"""
+        current_time = time.time()
+        if (self.producer is None or 
+            self.last_checked is None or 
+            current_time - self.last_checked > self.check_interval):
+            try:
+                # Test connection by getting topic list
+                self.client.topics
+                self.last_checked = current_time
+            except:
+                logger.warning("Kafka connection lost, attempting to reconnect...")
+                self.connect()
+
     def _heartbeat_loop(self):
         """Background thread that maintains connection"""
         while self.running:
@@ -65,11 +81,13 @@ class KafkaProducerWrapper:
                 self.client.topics
                 # Update metadata to ensure fresh connection
                 self.client.update_cluster()
-                self.last_checked = time.time()
                 logger.debug("Kafka connection heartbeat successful")
-            except:
-                logger.warning("Kafka connection lost, attempting to reconnect...")
-                self.connect()
+            except Exception as e:
+                logger.warning(f"Heartbeat failed, attempting to reconnect... Error: {str(e)}")
+                try:
+                    self.connect()
+                except Exception as conn_err:
+                    logger.error(f"Reconnection failed: {str(conn_err)}")
             time.sleep(self.check_interval)
 
     def produce_message(self, message):
@@ -87,6 +105,14 @@ class KafkaProducerWrapper:
                     raise
                 time.sleep(2)
 
+    def stop(self):
+        """Stop the heartbeat thread and clean up"""
+        self.running = False
+        if self.heartbeat_thread:
+            self.heartbeat_thread.join(timeout=5)
+        if self.producer:
+            self.producer.stop()
+
 # Create a single producer instance
 kafka_producer = KafkaProducerWrapper(
     host=app_config['events']['hostname'],
@@ -94,7 +120,13 @@ kafka_producer = KafkaProducerWrapper(
     topic=app_config['events']['topic']
 )
 kafka_producer.connect()
-kafka_producer.start_heartbeat()
+
+# Add cleanup on application shutdown
+def cleanup():
+    kafka_producer.stop()
+
+import atexit
+atexit.register(cleanup)
 
 def submit_air_quality_data(body):
     """ Forwards air quality data to Kafka """
