@@ -35,7 +35,6 @@ class KafkaProducerWrapper:
             self.client = KafkaClient(hosts=f"{self.host}:{self.port}")
             topic = self.client.topics[str.encode(self.topic_name)]
             self.producer = topic.get_sync_producer(
-                sync=True,                    # Ensure synchronous operation
                 min_queued_messages=1,        # Send messages immediately
                 max_queued_messages=1000,     # Reasonable queue size
                 linger_ms=1000,              # Wait up to 1 second for more messages
