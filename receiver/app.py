@@ -34,7 +34,16 @@ class KafkaProducerWrapper:
         try:
             self.client = KafkaClient(hosts=f"{self.host}:{self.port}")
             topic = self.client.topics[str.encode(self.topic_name)]
-            self.producer = topic.get_sync_producer()
+            self.producer = topic.get_sync_producer(
+                sync=True,                    # Ensure synchronous operation
+                min_queued_messages=1,        # Send messages immediately
+                max_queued_messages=1000,     # Reasonable queue size
+                linger_ms=1000,              # Wait up to 1 second for more messages
+                retry_backoff_ms=100,        # Time between retries
+                required_acks=1,             # Wait for leader acknowledgment
+                ack_timeout_ms=10000,        # 10 seconds to wait for ack
+                pending_timeout_ms=10000     # 10 seconds to wait for delivery report
+            )
             self.last_checked = time.time()
             logger.info("Successfully connected to Kafka")
         except Exception as e:
@@ -62,12 +71,13 @@ class KafkaProducerWrapper:
             try:
                 self.ensure_connection()
                 self.producer.produce(message.encode('utf-8'))
+                logger.debug("Message produced successfully")
                 return
             except Exception as e:
-                logger.error(f"Failed to produce message: {str(e)}")
+                logger.error(f"Failed to produce message (attempt {attempt + 1}/{max_retries}): {str(e)}")
                 if attempt == max_retries - 1:
                     raise
-                time.sleep(1)
+                time.sleep(2)
 
 # Create a single producer instance
 kafka_producer = KafkaProducerWrapper(
