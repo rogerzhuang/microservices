@@ -24,7 +24,6 @@ def get_producer():
     client = KafkaClient(hosts=f"{app_config['events']['hostname']}:{app_config['events']['port']}")
     topic = client.topics[str.encode(app_config['events']['topic'])]
     return topic.get_sync_producer(
-        sync=True,                    # Ensure synchronous operation
         min_queued_messages=1,        # Send messages immediately
         max_queued_messages=10,       # Keep queue small
         linger_ms=0,                  # Don't wait for batching
