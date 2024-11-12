@@ -8,6 +8,7 @@ import datetime
 import json
 from pykafka import KafkaClient
 from pykafka.exceptions import SocketDisconnectedError, LeaderNotAvailable
+import time
 
 with open('app_config.yml', 'r') as f:
     app_config = yaml.safe_load(f.read())
@@ -19,10 +20,20 @@ with open('log_config.yml', 'r') as f:
 logger = logging.getLogger('basicLogger')
 
 def get_producer():
-    """Get a new producer instance"""
+    """Get a new producer instance with optimized settings"""
     client = KafkaClient(hosts=f"{app_config['events']['hostname']}:{app_config['events']['port']}")
     topic = client.topics[str.encode(app_config['events']['topic'])]
-    return topic.get_sync_producer()
+    return topic.get_sync_producer(
+        sync=True,                    # Ensure synchronous operation
+        min_queued_messages=1,        # Send messages immediately
+        max_queued_messages=10,       # Keep queue small
+        linger_ms=0,                  # Don't wait for batching
+        delivery_reports=False,       # Disable delivery reports since we're using sync=True
+        required_acks=1,              # Only wait for leader acknowledgment
+        ack_timeout_ms=45000,         # Shorter timeout for acks
+        pending_timeout_ms=60000,     # Reasonable timeout for pending messages
+        retry_backoff_ms=100         # Short backoff between retries
+    )
 
 # Initial producer setup
 producer = get_producer()
@@ -39,13 +50,17 @@ def produce_message(msg_str):
         except (SocketDisconnectedError, LeaderNotAvailable) as e:
             logger.warning(f"Connection issue (attempt {attempt + 1}): {str(e)}")
             try:
+                # Proper cleanup of old producer
                 producer.stop()
+                # Get new producer
                 producer = get_producer()
+                # Ensure it's started
                 producer.start()
             except Exception as e:
                 logger.error(f"Failed to reconnect: {str(e)}")
                 if attempt == max_retries - 1:
                     raise
+            time.sleep(0.1 * (attempt + 1))  # Progressive backoff
 
 def submit_air_quality_data(body):
     """ Forwards air quality data to Kafka """
