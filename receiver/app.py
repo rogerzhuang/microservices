@@ -18,7 +18,7 @@ with open('log_config.yml', 'r') as f:
 logger = logging.getLogger('basicLogger')
 
 # Create a single KafkaClient instance
-kafka_client = KafkaClient(hosts=f"{app_config['events']['hostname']}:{app_config['events']['port']}")
+kafka_client = KafkaClient(hosts=f"{app_config['events']['hostname']}:{app_config['events']['port']}", broker_reconnect_on_idle=True)
 topic = kafka_client.topics[str.encode(app_config['events']['topic'])]
 producer = topic.get_sync_producer()
 
