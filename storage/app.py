@@ -139,7 +139,7 @@ def process_messages():
         bootstrap_servers=f"{app_config['events']['hostname']}:{app_config['events']['port']}",
         group_id='event_group',
         auto_offset_reset='latest',
-        enable_auto_commit=True,
+        reset_offset_on_start=False,
         value_deserializer=lambda x: json.loads(x.decode('utf-8'))
     )
     
@@ -174,7 +174,9 @@ def process_messages():
                 logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
             
             session.commit()
-            # Auto commit is enabled, no need to manually commit offsets
+            # Only commit offset after successful DB commit
+            consumer.commit()
+            logger.info(f"Committed offset for message: {msg.offset}")
             
         except OperationalError as e:
             logger.error(f"Database operational error: {str(e)}")
