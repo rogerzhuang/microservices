@@ -135,14 +135,16 @@ def process_messages():
     """ Process event messages """
     # Create a Kafka consumer
     consumer = KafkaConsumer(
-        app_config["events"]["topic"],
         bootstrap_servers=f"{app_config['events']['hostname']}:{app_config['events']['port']}",
         group_id='event_group',
         auto_offset_reset='latest',
-        reset_offset_on_start=False,
+        enable_auto_commit=True,
         value_deserializer=lambda x: json.loads(x.decode('utf-8'))
     )
     
+    # Explicitly subscribe to the topic
+    consumer.subscribe([app_config["events"]["topic"]])
+
     for msg in consumer:
         session = DB_SESSION()
         try:
@@ -174,9 +176,7 @@ def process_messages():
                 logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
             
             session.commit()
-            # Only commit offset after successful DB commit
-            consumer.commit()
-            logger.info(f"Committed offset for message: {msg.offset}")
+            # Auto commit is enabled, no need to manually commit offsets
             
         except OperationalError as e:
             logger.error(f"Database operational error: {str(e)}")
