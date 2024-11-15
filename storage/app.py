@@ -47,7 +47,7 @@ pymysql.install_as_MySQLdb()
 
 def submit_air_quality_data(body):
     """ Receives air quality sensor data """
-    logger.debug(f"Received event air quality data with a trace id of {body['trace_id']}")
+    # logger.debug(f"Received event air quality data with a trace id of {body['trace_id']}")
 
     session = DB_SESSION()
 
@@ -71,7 +71,7 @@ def submit_air_quality_data(body):
 
 def submit_weather_data(body):
     """ Receives weather sensor data """
-    logger.debug(f"Received event weather data with a trace id of {body['trace_id']}")
+    # logger.debug(f"Received event weather data with a trace id of {body['trace_id']}")
 
     session = DB_SESSION()
 
@@ -95,7 +95,7 @@ def submit_weather_data(body):
 
 def get_air_quality_readings(start_timestamp, end_timestamp):
     """ Gets new air quality readings between the start and end timestamps """
-    logger.info(f"Received request for air quality readings between {start_timestamp} and {end_timestamp}")
+    # logger.info(f"Received request for air quality readings between {start_timestamp} and {end_timestamp}")
 
     session = DB_SESSION()
     
@@ -115,7 +115,7 @@ def get_air_quality_readings(start_timestamp, end_timestamp):
 
 def get_weather_readings(start_timestamp, end_timestamp):
     """ Gets new weather readings between the start and end timestamps """
-    logger.info(f"Received request for weather readings between {start_timestamp} and {end_timestamp}")
+    # logger.info(f"Received request for weather readings between {start_timestamp} and {end_timestamp}")
 
     session = DB_SESSION()
     
