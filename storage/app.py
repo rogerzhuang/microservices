@@ -17,7 +17,6 @@ from pykafka.common import OffsetType
 from threading import Thread
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import QueuePool
-import time
 
 with open('log_config.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
@@ -47,7 +46,7 @@ pymysql.install_as_MySQLdb()
 
 def submit_air_quality_data(body):
     """ Receives air quality sensor data """
-    # logger.debug(f"Received event air quality data with a trace id of {body['trace_id']}")
+    logger.debug(f"Received event air quality data with a trace id of {body['trace_id']}")
 
     session = DB_SESSION()
 
@@ -65,13 +64,13 @@ def submit_air_quality_data(body):
     session.commit()
     session.close()
 
-    # logger.debug(f"Stored event air quality request with a trace id of {body['trace_id']}")
+    logger.debug(f"Stored event air quality request with a trace id of {body['trace_id']}")
 
     return NoContent, 201
 
 def submit_weather_data(body):
     """ Receives weather sensor data """
-    # logger.debug(f"Received event weather data with a trace id of {body['trace_id']}")
+    logger.debug(f"Received event weather data with a trace id of {body['trace_id']}")
 
     session = DB_SESSION()
 
@@ -89,13 +88,13 @@ def submit_weather_data(body):
     session.commit()
     session.close()
 
-    # logger.debug(f"Stored event weather request with a trace id of {body['trace_id']}")
+    logger.debug(f"Stored event weather request with a trace id of {body['trace_id']}")
 
     return NoContent, 201
 
 def get_air_quality_readings(start_timestamp, end_timestamp):
     """ Gets new air quality readings between the start and end timestamps """
-    # logger.info(f"Received request for air quality readings between {start_timestamp} and {end_timestamp}")
+    logger.info(f"Received request for air quality readings between {start_timestamp} and {end_timestamp}")
 
     session = DB_SESSION()
     
@@ -108,14 +107,14 @@ def get_air_quality_readings(start_timestamp, end_timestamp):
 
     session.close()
 
-    # logger.info("Query for Air Quality readings between %s and %s returns %d results" %
-    #             (start_timestamp, end_timestamp, len(results_list)))
+    logger.info("Query for Air Quality readings between %s and %s returns %d results" %
+                (start_timestamp, end_timestamp, len(results_list)))
     
     return results_list, 200
 
 def get_weather_readings(start_timestamp, end_timestamp):
     """ Gets new weather readings between the start and end timestamps """
-    # logger.info(f"Received request for weather readings between {start_timestamp} and {end_timestamp}")
+    logger.info(f"Received request for weather readings between {start_timestamp} and {end_timestamp}")
 
     session = DB_SESSION()
     
@@ -128,73 +127,63 @@ def get_weather_readings(start_timestamp, end_timestamp):
     
     session.close()
 
-    # logger.info("Query for Weather readings between %s and %s returns %d results" %
-    #             (start_timestamp, end_timestamp, len(results_list)))
+    logger.info("Query for Weather readings between %s and %s returns %d results" %
+                (start_timestamp, end_timestamp, len(results_list)))
     
     return results_list, 200
 
 def process_messages():
     """ Process event messages """
-    while True:
+    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
+    client = KafkaClient(hosts=hostname)
+    topic = client.topics[str.encode(app_config["events"]["topic"])]
+    
+    consumer = topic.get_simple_consumer(consumer_group=b'event_group',
+                                       reset_offset_on_start=False,
+                                       auto_offset_reset=OffsetType.LATEST)
+    
+    for msg in consumer:
+        session = DB_SESSION()
         try:
-            hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
-            client = KafkaClient(hosts=hostname)
-            topic = client.topics[str.encode(app_config["events"]["topic"])]
+            msg_str = msg.value.decode('utf-8')
+            msg = json.loads(msg_str)
+            logger.info(f"Message: {msg}")
+            payload = msg["payload"]
             
-            consumer = topic.get_simple_consumer(
-                consumer_group=b'event_group',
-                reset_offset_on_start=False,
-                auto_offset_reset=OffsetType.LATEST
-            )
+            if msg["type"] == "air_quality":
+                aq = AirQuality(payload['trace_id'],
+                              payload['reading_id'],
+                              payload['sensor_id'],
+                              payload['timestamp'],
+                              payload['pm2_5_concentration'],
+                              payload['pm10_concentration'],
+                              payload['co2_level'],
+                              payload['o3_level'])
+                session.add(aq)
+                logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
+            elif msg["type"] == "weather":
+                weather = Weather(payload['trace_id'],
+                                payload['reading_id'],
+                                payload['sensor_id'],
+                                payload['timestamp'],
+                                payload['temperature'],
+                                payload['humidity'],
+                                payload['wind_speed'],
+                                payload['noise_level'])
+                session.add(weather)
+                logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
             
-            logger.info("Connected to Kafka, processing messages")
+            session.commit()
+            consumer.commit_offsets()
             
-            for msg in consumer:
-                if msg is not None:
-                    session = DB_SESSION()
-                    try:
-                        msg_str = msg.value.decode('utf-8')
-                        msg = json.loads(msg_str)
-                        logger.info(f"Message: {msg}")
-                        payload = msg["payload"]
-                        
-                        if msg["type"] == "air_quality":
-                            aq = AirQuality(payload['trace_id'],
-                                          payload['reading_id'],
-                                          payload['sensor_id'],
-                                          payload['timestamp'],
-                                          payload['pm2_5_concentration'],
-                                          payload['pm10_concentration'],
-                                          payload['co2_level'],
-                                          payload['o3_level'])
-                            session.add(aq)
-                            logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
-                        elif msg["type"] == "weather":
-                            weather = Weather(payload['trace_id'],
-                                            payload['reading_id'],
-                                            payload['sensor_id'],
-                                            payload['timestamp'],
-                                            payload['temperature'],
-                                            payload['humidity'],
-                                            payload['wind_speed'],
-                                            payload['noise_level'])
-                            session.add(weather)
-                            logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
-                        
-                        session.commit()
-                        consumer.commit_offsets()
-                        
-                    except Exception as e:
-                        logger.error(f"Processing error: {str(e)}")
-                        session.rollback()
-                    finally:
-                        session.close()
-                    
+        except OperationalError as e:
+            logger.error(f"Database operational error: {str(e)}")
+            session.rollback()
         except Exception as e:
-            logger.error(f"Kafka error: {str(e)}")
-            
-        logger.info("Attempting to reconnect in 10 seconds...")
-        time.sleep(10)
+            logger.error(f"Processing error: {str(e)}")
+            session.rollback()
+        finally:
+            session.close()
 
 app = connexion.FlaskApp(__name__, specification_dir='')
 app.add_api("openapi.yml", strict_validation=True, validate_responses=True)
