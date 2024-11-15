@@ -135,15 +135,13 @@ def process_messages():
     """ Process event messages """
     # Create a Kafka consumer
     consumer = KafkaConsumer(
+        app_config["events"]["topic"],
         bootstrap_servers=f"{app_config['events']['hostname']}:{app_config['events']['port']}",
         group_id='event_group',
         auto_offset_reset='latest',
         enable_auto_commit=True,
         value_deserializer=lambda x: json.loads(x.decode('utf-8'))
     )
-    
-    # Explicitly subscribe to the topic
-    consumer.subscribe([app_config["events"]["topic"]])
 
     for msg in consumer:
         session = DB_SESSION()
