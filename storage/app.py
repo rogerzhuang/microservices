@@ -136,115 +136,72 @@ def get_weather_readings(start_timestamp, end_timestamp):
 def process_messages():
     """ Process event messages """
     while True:
-        consumer = None
         try:
             hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
-            logger.info(f"Attempting to connect to Kafka at {hostname}")
             client = KafkaClient(hosts=hostname)
             topic = client.topics[str.encode(app_config["events"]["topic"])]
             
-            # Configure consumer to only read new messages
             consumer = topic.get_simple_consumer(
                 consumer_group=b'event_group',
-                reset_offset_on_start=True,  # Reset offset when starting
-                auto_offset_reset=OffsetType.LATEST,  # Use latest offset
-                consumer_timeout_ms=2000,  # 2 second timeout
-                fetch_message_max_bytes=52428800,  # 50MB to handle large message batches
-                auto_commit_enable=True,
-                auto_commit_interval_ms=1000,
-                fetch_min_bytes=1,  # Request at least 1 byte of data
-                reset_offset_on_fetch=True  # Reset offset when fetching
+                reset_offset_on_start=False,
+                auto_offset_reset=OffsetType.LATEST,
+                consumer_timeout_ms=2000  # 2 second timeout
             )
             
-            # Force consumer to start from latest offset
-            consumer.stop()
-            consumer.start()
-            
-            logger.info("Successfully connected to Kafka, starting message processing")
-            
+            logger.info("Connected to Kafka, processing messages")
             last_message_time = time.time()
-            message_count = 0
             
-            while True:
-                try:
-                    message = consumer.consume()
+            for msg in consumer:
+                if msg is None:
                     current_time = time.time()
-                    
-                    if message is None:
-                        time_since_last = current_time - last_message_time
-                        logger.debug(f"No message received. Time since last message: {time_since_last:.1f}s")
-                        if time_since_last > 300:  # 5 minutes
-                            logger.warning("No messages received for 5 minutes, forcing reconnection...")
-                            break
-                        continue
-
-                    # Process message
-                    last_message_time = current_time
-                    msg_str = message.value.decode('utf-8')
+                    if current_time - last_message_time > 300:  # 5 minutes
+                        logger.info("No messages received for 5 minutes, reconnecting...")
+                        break
+                    continue
+                
+                last_message_time = time.time()
+                session = DB_SESSION()
+                try:
+                    msg_str = msg.value.decode('utf-8')
                     msg = json.loads(msg_str)
-                    logger.debug(f"Processing message of type: {msg.get('type')} at offset {message.offset}")
+                    logger.info(f"Message: {msg}")
+                    payload = msg["payload"]
                     
-                    session = DB_SESSION()
-                    try:
-                        payload = msg["payload"]
-                        
-                        if msg["type"] == "air_quality":
-                            aq = AirQuality(
-                                payload['trace_id'],
-                                payload['reading_id'],
-                                payload['sensor_id'],
-                                payload['timestamp'],
-                                payload['pm2_5_concentration'],
-                                payload['pm10_concentration'],
-                                payload['co2_level'],
-                                payload['o3_level']
-                            )
-                            session.add(aq)
-                            session.commit()
-                            logger.info(f"Stored air quality event with trace ID: {payload['trace_id']} at offset {message.offset}")
-                            
-                        elif msg["type"] == "weather":
-                            weather = Weather(
-                                payload['trace_id'],
-                                payload['reading_id'],
-                                payload['sensor_id'],
-                                payload['timestamp'],
-                                payload['temperature'],
-                                payload['humidity'],
-                                payload['wind_speed'],
-                                payload['noise_level']
-                            )
-                            session.add(weather)
-                            session.commit()
-                            logger.info(f"Stored weather event with trace ID: {payload['trace_id']} at offset {message.offset}")
-                        
-                        # Explicitly commit the offset after successful DB commit
-                        consumer.commit_offsets()
-                        message_count += 1
-                        logger.debug(f"Successfully processed message {message_count} at offset {message.offset}")
-                            
-                    except Exception as e:
-                        logger.error(f"Error processing message: {str(e)}")
-                        session.rollback()
-                        raise  # Re-raise to trigger reconnection
-                    finally:
-                        session.close()
-                        
+                    if msg["type"] == "air_quality":
+                        aq = AirQuality(payload['trace_id'],
+                                      payload['reading_id'],
+                                      payload['sensor_id'],
+                                      payload['timestamp'],
+                                      payload['pm2_5_concentration'],
+                                      payload['pm10_concentration'],
+                                      payload['co2_level'],
+                                      payload['o3_level'])
+                        session.add(aq)
+                        logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
+                    elif msg["type"] == "weather":
+                        weather = Weather(payload['trace_id'],
+                                        payload['reading_id'],
+                                        payload['sensor_id'],
+                                        payload['timestamp'],
+                                        payload['temperature'],
+                                        payload['humidity'],
+                                        payload['wind_speed'],
+                                        payload['noise_level'])
+                        session.add(weather)
+                        logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
+                    
+                    session.commit()
+                    consumer.commit_offsets()
+                    
                 except Exception as e:
-                    logger.error(f"Error consuming message: {str(e)}")
-                    break  # Break inner loop to trigger reconnection
+                    logger.error(f"Processing error: {str(e)}")
+                    session.rollback()
+                finally:
+                    session.close()
                     
         except Exception as e:
-            logger.error(f"Kafka connection error: {str(e)}")
-        
-        finally:
-            if consumer:
-                try:
-                    consumer.stop()
-                    logger.info("Consumer stopped cleanly")
-                except Exception as e:
-                    logger.error(f"Error stopping consumer: {str(e)}")
-                    
+            logger.error(f"Kafka error: {str(e)}")
+            
         logger.info("Attempting to reconnect in 10 seconds...")
         time.sleep(10)
 
