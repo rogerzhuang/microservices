@@ -159,12 +159,11 @@ def process_messages():
                 logger.info("Waiting for partitions to be assigned...")
                 time.sleep(1)
             
-            # Seek to end of each partition using consumer's partition list
-            for partition_id in consumer.partitions.keys():
-                partition = consumer.partitions[partition_id]
-                last_offset = partition.latest_available_offsets()[0]  # Get latest offset
-                consumer.reset_offsets([(partition_id, last_offset)])
-                logger.info(f"Set partition {partition_id} to latest offset {last_offset}")
+            # Seek to end of each partition
+            for partition_id, partition in consumer.partitions.items():
+                latest_offset = topic.latest_available_offsets()[partition_id].offset[0]
+                consumer.reset_offsets([(partition_id, latest_offset)])
+                logger.info(f"Set partition {partition_id} to latest offset {latest_offset}")
             
             logger.info("Successfully connected to Kafka, starting message processing")
             
