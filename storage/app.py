@@ -12,8 +12,9 @@ from weather import Weather
 import datetime
 import pymysql
 import json
+from pykafka import KafkaClient
+from pykafka.common import OffsetType
 from threading import Thread
-from kafka import KafkaConsumer
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import QueuePool
 
@@ -133,24 +134,24 @@ def get_weather_readings(start_timestamp, end_timestamp):
 
 def process_messages():
     """ Process event messages """
-    # Create a Kafka consumer
-    consumer = KafkaConsumer(
-        app_config["events"]["topic"],
-        bootstrap_servers=f"{app_config['events']['hostname']}:{app_config['events']['port']}",
-        group_id='event_group',
-        auto_offset_reset='latest',
-        enable_auto_commit=True,
-        value_deserializer=lambda x: json.loads(x.decode('utf-8'))
-    )
-
+    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
+    client = KafkaClient(hosts=hostname)
+    topic = client.topics[str.encode(app_config["events"]["topic"])]
+    
+    consumer = topic.get_simple_consumer(consumer_group=b'event_group',
+                                       reset_offset_on_start=False,
+                                       auto_offset_reset=OffsetType.LATEST,
+                                       consumer_timeout_ms=1000)
+    
     for msg in consumer:
         session = DB_SESSION()
         try:
-            message = msg.value  # No need to decode and parse JSON manually
-            logger.info(f"Message: {message}")
-            payload = message["payload"]
+            msg_str = msg.value.decode('utf-8')
+            msg = json.loads(msg_str)
+            logger.info(f"Message: {msg}")
+            payload = msg["payload"]
             
-            if message["type"] == "air_quality":
+            if msg["type"] == "air_quality":
                 aq = AirQuality(payload['trace_id'],
                               payload['reading_id'],
                               payload['sensor_id'],
@@ -161,7 +162,7 @@ def process_messages():
                               payload['o3_level'])
                 session.add(aq)
                 logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
-            elif message["type"] == "weather":
+            elif msg["type"] == "weather":
                 weather = Weather(payload['trace_id'],
                                 payload['reading_id'],
                                 payload['sensor_id'],
@@ -174,7 +175,7 @@ def process_messages():
                 logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
             
             session.commit()
-            # Auto commit is enabled, no need to manually commit offsets
+            consumer.commit_offsets()
             
         except OperationalError as e:
             logger.error(f"Database operational error: {str(e)}")
