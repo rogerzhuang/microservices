@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 LABEL maintainer="zzhuang7@my.bcit.ca"
-RUN apt-get update -y && apt-get install -y python3 python3-pip gcc librdkafka-dev
+RUN apt-get update -y && apt-get install -y python3 python3-pip gcc python3-dev librdkafka-dev
 # We copy just the requirements.txt first to leverage Docker cache
 COPY ./requirements.txt /app/requirements.txt
 WORKDIR /app
