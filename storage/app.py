@@ -151,8 +151,14 @@ def process_messages():
                 consumer_timeout_ms=2000,  # 2 second timeout
                 fetch_message_max_bytes=52428800,  # 50MB to handle large message batches
                 auto_commit_enable=True,
-                auto_commit_interval_ms=1000
+                auto_commit_interval_ms=1000,
+                fetch_min_bytes=1,  # Request at least 1 byte of data
+                reset_offset_on_fetch=True  # Reset offset when fetching
             )
+            
+            # Force consumer to start from latest offset
+            consumer.stop()
+            consumer.start()
             
             logger.info("Successfully connected to Kafka, starting message processing")
             
@@ -176,7 +182,7 @@ def process_messages():
                     last_message_time = current_time
                     msg_str = message.value.decode('utf-8')
                     msg = json.loads(msg_str)
-                    logger.debug(f"Processing message of type: {msg.get('type')}")
+                    logger.debug(f"Processing message of type: {msg.get('type')} at offset {message.offset}")
                     
                     session = DB_SESSION()
                     try:
@@ -195,7 +201,7 @@ def process_messages():
                             )
                             session.add(aq)
                             session.commit()
-                            logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
+                            logger.info(f"Stored air quality event with trace ID: {payload['trace_id']} at offset {message.offset}")
                             
                         elif msg["type"] == "weather":
                             weather = Weather(
@@ -210,12 +216,12 @@ def process_messages():
                             )
                             session.add(weather)
                             session.commit()
-                            logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
+                            logger.info(f"Stored weather event with trace ID: {payload['trace_id']} at offset {message.offset}")
                         
                         # Explicitly commit the offset after successful DB commit
                         consumer.commit_offsets()
                         message_count += 1
-                        logger.debug(f"Successfully processed message {message_count}")
+                        logger.debug(f"Successfully processed message {message_count} at offset {message.offset}")
                             
                     except Exception as e:
                         logger.error(f"Error processing message: {str(e)}")
