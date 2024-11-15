@@ -144,60 +144,51 @@ def process_messages():
             consumer = topic.get_simple_consumer(
                 consumer_group=b'event_group',
                 reset_offset_on_start=False,
-                auto_offset_reset=OffsetType.LATEST,
-                consumer_timeout_ms=2000  # 2 second timeout
+                auto_offset_reset=OffsetType.LATEST
             )
             
             logger.info("Connected to Kafka, processing messages")
-            last_message_time = time.time()
             
             for msg in consumer:
-                if msg is None:
-                    current_time = time.time()
-                    if current_time - last_message_time > 300:  # 5 minutes
-                        logger.info("No messages received for 5 minutes, reconnecting...")
-                        break
-                    continue
-                
-                last_message_time = time.time()
-                session = DB_SESSION()
-                try:
-                    msg_str = msg.value.decode('utf-8')
-                    msg = json.loads(msg_str)
-                    logger.info(f"Message: {msg}")
-                    payload = msg["payload"]
-                    
-                    if msg["type"] == "air_quality":
-                        aq = AirQuality(payload['trace_id'],
-                                      payload['reading_id'],
-                                      payload['sensor_id'],
-                                      payload['timestamp'],
-                                      payload['pm2_5_concentration'],
-                                      payload['pm10_concentration'],
-                                      payload['co2_level'],
-                                      payload['o3_level'])
-                        session.add(aq)
-                        logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
-                    elif msg["type"] == "weather":
-                        weather = Weather(payload['trace_id'],
-                                        payload['reading_id'],
-                                        payload['sensor_id'],
-                                        payload['timestamp'],
-                                        payload['temperature'],
-                                        payload['humidity'],
-                                        payload['wind_speed'],
-                                        payload['noise_level'])
-                        session.add(weather)
-                        logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
-                    
-                    session.commit()
-                    consumer.commit_offsets()
-                    
-                except Exception as e:
-                    logger.error(f"Processing error: {str(e)}")
-                    session.rollback()
-                finally:
-                    session.close()
+                if msg is not None:
+                    session = DB_SESSION()
+                    try:
+                        msg_str = msg.value.decode('utf-8')
+                        msg = json.loads(msg_str)
+                        logger.info(f"Message: {msg}")
+                        payload = msg["payload"]
+                        
+                        if msg["type"] == "air_quality":
+                            aq = AirQuality(payload['trace_id'],
+                                          payload['reading_id'],
+                                          payload['sensor_id'],
+                                          payload['timestamp'],
+                                          payload['pm2_5_concentration'],
+                                          payload['pm10_concentration'],
+                                          payload['co2_level'],
+                                          payload['o3_level'])
+                            session.add(aq)
+                            logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
+                        elif msg["type"] == "weather":
+                            weather = Weather(payload['trace_id'],
+                                            payload['reading_id'],
+                                            payload['sensor_id'],
+                                            payload['timestamp'],
+                                            payload['temperature'],
+                                            payload['humidity'],
+                                            payload['wind_speed'],
+                                            payload['noise_level'])
+                            session.add(weather)
+                            logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
+                        
+                        session.commit()
+                        consumer.commit_offsets()
+                        
+                    except Exception as e:
+                        logger.error(f"Processing error: {str(e)}")
+                        session.rollback()
+                    finally:
+                        session.close()
                     
         except Exception as e:
             logger.error(f"Kafka error: {str(e)}")
