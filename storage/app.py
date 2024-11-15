@@ -143,28 +143,23 @@ def process_messages():
             client = KafkaClient(hosts=hostname)
             topic = client.topics[str.encode(app_config["events"]["topic"])]
             
-            # Get the first available partition
-            partitions = topic.partitions
-            if not partitions:
-                logger.error("No partitions found for topic")
-                time.sleep(10)
-                continue
-                
-            # Get first partition key
-            partition_id = list(partitions.keys())[0]
-            
+            # Configure consumer to only read new messages
             consumer = topic.get_simple_consumer(
                 consumer_group=b'event_group',
-                reset_offset_on_start=False,
-                auto_offset_reset=OffsetType.LATEST,
-                consumer_timeout_ms=2000,  # 2 second timeout
+                reset_offset_on_start=False,  # Don't reset offset on start
+                auto_offset_reset=OffsetType.LATEST,  # Use latest when no offset is found
+                consumer_timeout_ms=2000,
+                fetch_message_max_bytes=52428800,  # 50MB to handle large message batches
                 auto_commit_enable=True,
-                auto_commit_interval_ms=1000  # Commit every 1 second
+                auto_commit_interval_ms=1000
             )
             
-            # Reset offsets to latest on reconnection
-            if consumer:
-                consumer.reset_offsets([(partition_id, OffsetType.LATEST)])
+            # Seek to end of each partition to only process new messages
+            partitions = topic.partitions
+            for partition in partitions.values():
+                last_offset = partition.latest_available_offset()
+                consumer.reset_offsets([(partition.id, last_offset)])
+                logger.info(f"Set partition {partition.id} to latest offset {last_offset}")
             
             logger.info("Successfully connected to Kafka, starting message processing")
             
@@ -181,18 +176,13 @@ def process_messages():
                         logger.debug(f"No message received. Time since last message: {time_since_last:.1f}s")
                         if time_since_last > 300:  # 5 minutes
                             logger.warning("No messages received for 5 minutes, forcing reconnection...")
-                            if consumer:
-                                consumer.stop()
                             break
                         continue
 
-                    # Reset the timer when we receive a message
+                    # Process message
                     last_message_time = current_time
-                    
-                    # Message received, process it
                     msg_str = message.value.decode('utf-8')
                     msg = json.loads(msg_str)
-                    logger.debug(f"Received message type: {msg.get('type')}")
                     
                     session = DB_SESSION()
                     try:
