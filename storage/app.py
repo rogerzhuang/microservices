@@ -65,7 +65,7 @@ def submit_air_quality_data(body):
     session.commit()
     session.close()
 
-    logger.debug(f"Stored event air quality request with a trace id of {body['trace_id']}")
+    # logger.debug(f"Stored event air quality request with a trace id of {body['trace_id']}")
 
     return NoContent, 201
 
@@ -89,7 +89,7 @@ def submit_weather_data(body):
     session.commit()
     session.close()
 
-    logger.debug(f"Stored event weather request with a trace id of {body['trace_id']}")
+    # logger.debug(f"Stored event weather request with a trace id of {body['trace_id']}")
 
     return NoContent, 201
 
@@ -108,8 +108,8 @@ def get_air_quality_readings(start_timestamp, end_timestamp):
 
     session.close()
 
-    logger.info("Query for Air Quality readings between %s and %s returns %d results" %
-                (start_timestamp, end_timestamp, len(results_list)))
+    # logger.info("Query for Air Quality readings between %s and %s returns %d results" %
+    #             (start_timestamp, end_timestamp, len(results_list)))
     
     return results_list, 200
 
@@ -128,8 +128,8 @@ def get_weather_readings(start_timestamp, end_timestamp):
     
     session.close()
 
-    logger.info("Query for Weather readings between %s and %s returns %d results" %
-                (start_timestamp, end_timestamp, len(results_list)))
+    # logger.info("Query for Weather readings between %s and %s returns %d results" %
+    #             (start_timestamp, end_timestamp, len(results_list)))
     
     return results_list, 200
 
@@ -176,6 +176,7 @@ def process_messages():
                     last_message_time = current_time
                     msg_str = message.value.decode('utf-8')
                     msg = json.loads(msg_str)
+                    logger.debug(f"Processing message of type: {msg.get('type')}")
                     
                     session = DB_SESSION()
                     try:
@@ -193,7 +194,9 @@ def process_messages():
                                 payload['o3_level']
                             )
                             session.add(aq)
+                            session.commit()
                             logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
+                            
                         elif msg["type"] == "weather":
                             weather = Weather(
                                 payload['trace_id'],
@@ -206,21 +209,24 @@ def process_messages():
                                 payload['noise_level']
                             )
                             session.add(weather)
+                            session.commit()
                             logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
                         
-                        session.commit()
+                        # Explicitly commit the offset after successful DB commit
+                        consumer.commit_offsets()
                         message_count += 1
                         logger.debug(f"Successfully processed message {message_count}")
                             
                     except Exception as e:
                         logger.error(f"Error processing message: {str(e)}")
                         session.rollback()
+                        raise  # Re-raise to trigger reconnection
                     finally:
                         session.close()
                         
                 except Exception as e:
                     logger.error(f"Error consuming message: {str(e)}")
-                    break
+                    break  # Break inner loop to trigger reconnection
                     
         except Exception as e:
             logger.error(f"Kafka connection error: {str(e)}")
@@ -229,6 +235,7 @@ def process_messages():
             if consumer:
                 try:
                     consumer.stop()
+                    logger.info("Consumer stopped cleanly")
                 except Exception as e:
                     logger.error(f"Error stopping consumer: {str(e)}")
                     
