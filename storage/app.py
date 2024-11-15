@@ -143,6 +143,16 @@ def process_messages():
             client = KafkaClient(hosts=hostname)
             topic = client.topics[str.encode(app_config["events"]["topic"])]
             
+            # Get the first available partition
+            partitions = topic.partitions
+            if not partitions:
+                logger.error("No partitions found for topic")
+                time.sleep(10)
+                continue
+                
+            # Get first partition key
+            partition_id = list(partitions.keys())[0]
+            
             consumer = topic.get_simple_consumer(
                 consumer_group=b'event_group',
                 reset_offset_on_start=False,
@@ -152,8 +162,9 @@ def process_messages():
                 auto_commit_interval_ms=1000  # Commit every 1 second
             )
             
+            # Reset offsets to latest on reconnection
             if consumer:
-                consumer.reset_offsets([(0, OffsetType.LATEST)])
+                consumer.reset_offsets([(partition_id, OffsetType.LATEST)])
             
             logger.info("Successfully connected to Kafka, starting message processing")
             
