@@ -148,18 +148,23 @@ def process_messages():
                 consumer_group=b'event_group',
                 reset_offset_on_start=False,  # Don't reset offset on start
                 auto_offset_reset=OffsetType.LATEST,  # Use latest when no offset is found
-                consumer_timeout_ms=2000,
+                consumer_timeout_ms=2000,  # 2 second timeout
                 fetch_message_max_bytes=52428800,  # 50MB to handle large message batches
                 auto_commit_enable=True,
                 auto_commit_interval_ms=1000
             )
             
-            # Seek to end of each partition to only process new messages
-            partitions = topic.partitions
-            for partition in partitions.values():
-                last_offset = partition.latest_available_offset()
-                consumer.reset_offsets([(partition.id, last_offset)])
-                logger.info(f"Set partition {partition.id} to latest offset {last_offset}")
+            # Wait for consumer to be ready
+            while not consumer.partitions:
+                logger.info("Waiting for partitions to be assigned...")
+                time.sleep(1)
+            
+            # Seek to end of each partition using consumer's partition list
+            for partition_id in consumer.partitions.keys():
+                partition = consumer.partitions[partition_id]
+                last_offset = partition.latest_available_offsets()[0]  # Get latest offset
+                consumer.reset_offsets([(partition_id, last_offset)])
+                logger.info(f"Set partition {partition_id} to latest offset {last_offset}")
             
             logger.info("Successfully connected to Kafka, starting message processing")
             
