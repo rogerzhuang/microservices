@@ -147,8 +147,13 @@ def process_messages():
                 consumer_group=b'event_group',
                 reset_offset_on_start=False,
                 auto_offset_reset=OffsetType.LATEST,
-                consumer_timeout_ms=2000  # 2 second timeout
+                consumer_timeout_ms=2000,  # 2 second timeout
+                auto_commit_enable=True,
+                auto_commit_interval_ms=1000  # Commit every 1 second
             )
+            
+            if consumer:
+                consumer.reset_offsets([(0, OffsetType.LATEST)])
             
             logger.info("Successfully connected to Kafka, starting message processing")
             
@@ -166,7 +171,7 @@ def process_messages():
                         if time_since_last > 300:  # 5 minutes
                             logger.warning("No messages received for 5 minutes, forcing reconnection...")
                             if consumer:
-                                consumer.stop()  # Only stop the consumer, don't try to close the client
+                                consumer.stop()
                             break
                         continue
 
@@ -210,11 +215,8 @@ def process_messages():
                             logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
                         
                         session.commit()
-                        consumer.commit_offsets()
-                        
                         message_count += 1
-                        if message_count % 100 == 0:  # Log every 100 messages
-                            logger.info(f"Successfully processed {message_count} messages")
+                        logger.debug(f"Successfully processed message {message_count}")
                             
                     except Exception as e:
                         logger.error(f"Error processing message: {str(e)}")
@@ -224,18 +226,17 @@ def process_messages():
                         
                 except Exception as e:
                     logger.error(f"Error consuming message: {str(e)}")
-                    break  # Break the inner loop on any consumer error
+                    break
                     
         except Exception as e:
             logger.error(f"Kafka connection error: {str(e)}")
         
         finally:
-            # Cleanup
             if consumer:
                 try:
                     consumer.stop()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.error(f"Error stopping consumer: {str(e)}")
                     
         logger.info("Attempting to reconnect in 10 seconds...")
         time.sleep(10)
