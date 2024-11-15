@@ -135,7 +135,7 @@ def get_weather_readings(start_timestamp, end_timestamp):
 
 def process_messages():
     """ Process event messages """
-    while True:  # Add outer loop for reconnection
+    while True:
         try:
             hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
             client = KafkaClient(hosts=hostname)
@@ -146,10 +146,23 @@ def process_messages():
                                                auto_offset_reset=OffsetType.LATEST)
             
             logger.info("Connected to Kafka, starting message processing")
-            for msg in consumer:
+            
+            last_message_time = time.time()
+            while True:
+                message = consumer.consume(timeout=10)  # 10 seconds timeout
+                current_time = time.time()
+                
+                if message is None:
+                    # No message received within timeout
+                    if current_time - last_message_time > 300:  # 5 minutes without messages
+                        logger.warning("No messages received for 5 minutes, reconnecting...")
+                        break  # Break inner loop to reconnect
+                    continue
+                
+                last_message_time = current_time
                 session = DB_SESSION()
                 try:
-                    msg_str = msg.value.decode('utf-8')
+                    msg_str = message.value.decode('utf-8')
                     msg = json.loads(msg_str)
                     logger.info(f"Message: {msg}")
                     payload = msg["payload"]
@@ -191,8 +204,9 @@ def process_messages():
                     
         except Exception as e:
             logger.error(f"Kafka connection error: {str(e)}")
-            logger.info("Attempting to reconnect in 10 seconds...")
-            time.sleep(10)  # Wait before reconnecting
+            
+        logger.info("Attempting to reconnect in 10 seconds...")
+        time.sleep(10)  # Wait before reconnecting
 
 app = connexion.FlaskApp(__name__, specification_dir='')
 app.add_api("openapi.yml", strict_validation=True, validate_responses=True)
