@@ -12,8 +12,6 @@ from weather import Weather
 import datetime
 import pymysql
 import json
-from pykafka import KafkaClient
-from pykafka.common import OffsetType
 from threading import Thread
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import QueuePool
