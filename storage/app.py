@@ -16,6 +16,7 @@ from aiokafka import AIOKafkaConsumer
 import asyncio
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import QueuePool
+from threading import Thread
 
 with open('log_config.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
@@ -189,10 +190,20 @@ async def process_messages():
     finally:
         await consumer.stop()
 
+def run_consumer():
+    """Run the Kafka consumer in the background"""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(process_messages())
+
 app = connexion.FlaskApp(__name__, specification_dir='')
 app.add_api("openapi.yml", strict_validation=True, validate_responses=True)
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.create_task(process_messages())
+    # Start the Kafka consumer in a separate thread
+    consumer_thread = Thread(target=run_consumer)
+    consumer_thread.daemon = True
+    consumer_thread.start()
+    
+    # Run the Flask app
     app.run(port=8090, host="0.0.0.0")
