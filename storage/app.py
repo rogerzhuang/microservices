@@ -28,7 +28,7 @@ with open('app_config.yml', 'r') as f:
 
 datastore_config = app_config['datastore']
 
-logger.info(f"Connecting to DB. Hostname:{datastore_config['hostname']}, Port:{datastore_config['port']}")
+# logger.info(f"Connecting to DB. Hostname:{datastore_config['hostname']}, Port:{datastore_config['port']}")
 
 # DB_ENGINE = create_engine("sqlite:///smart_city.sqlite")
 DB_ENGINE = create_engine(
@@ -45,7 +45,7 @@ pymysql.install_as_MySQLdb()
 
 def submit_air_quality_data(body):
     """ Receives air quality sensor data """
-    logger.debug(f"Received event air quality data with a trace id of {body['trace_id']}")
+    # logger.debug(f"Received event air quality data with a trace id of {body['trace_id']}")
 
     session = DB_SESSION()
 
@@ -63,13 +63,13 @@ def submit_air_quality_data(body):
     session.commit()
     session.close()
 
-    logger.debug(f"Stored event air quality request with a trace id of {body['trace_id']}")
+    # logger.debug(f"Stored event air quality request with a trace id of {body['trace_id']}")
 
     return NoContent, 201
 
 def submit_weather_data(body):
     """ Receives weather sensor data """
-    logger.debug(f"Received event weather data with a trace id of {body['trace_id']}")
+    # logger.debug(f"Received event weather data with a trace id of {body['trace_id']}")
 
     session = DB_SESSION()
 
@@ -87,13 +87,13 @@ def submit_weather_data(body):
     session.commit()
     session.close()
 
-    logger.debug(f"Stored event weather request with a trace id of {body['trace_id']}")
+    # logger.debug(f"Stored event weather request with a trace id of {body['trace_id']}")
 
     return NoContent, 201
 
 def get_air_quality_readings(start_timestamp, end_timestamp):
     """ Gets new air quality readings between the start and end timestamps """
-    logger.info(f"Received request for air quality readings between {start_timestamp} and {end_timestamp}")
+    # logger.info(f"Received request for air quality readings between {start_timestamp} and {end_timestamp}")
 
     session = DB_SESSION()
     
@@ -106,14 +106,14 @@ def get_air_quality_readings(start_timestamp, end_timestamp):
 
     session.close()
 
-    logger.info("Query for Air Quality readings between %s and %s returns %d results" %
-                (start_timestamp, end_timestamp, len(results_list)))
+    # logger.info("Query for Air Quality readings between %s and %s returns %d results" %
+    #             (start_timestamp, end_timestamp, len(results_list)))
     
     return results_list, 200
 
 def get_weather_readings(start_timestamp, end_timestamp):
     """ Gets new weather readings between the start and end timestamps """
-    logger.info(f"Received request for weather readings between {start_timestamp} and {end_timestamp}")
+    # logger.info(f"Received request for weather readings between {start_timestamp} and {end_timestamp}")
 
     session = DB_SESSION()
     
@@ -126,8 +126,8 @@ def get_weather_readings(start_timestamp, end_timestamp):
     
     session.close()
 
-    logger.info("Query for Weather readings between %s and %s returns %d results" %
-                (start_timestamp, end_timestamp, len(results_list)))
+    # logger.info("Query for Weather readings between %s and %s returns %d results" %
+    #             (start_timestamp, end_timestamp, len(results_list)))
     
     return results_list, 200
 
