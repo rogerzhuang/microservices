@@ -12,8 +12,8 @@ from weather import Weather
 import datetime
 import pymysql
 import json
-from threading import Thread
-from confluent_kafka import Consumer, KafkaError, KafkaException
+from aiokafka import AIOKafkaConsumer
+import asyncio
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import QueuePool
 
@@ -131,39 +131,29 @@ def get_weather_readings(start_timestamp, end_timestamp):
     
     return results_list, 200
 
-def process_messages():
+async def process_messages():
     """ Process event messages """
-    conf = {
-        'bootstrap.servers': f"{app_config['events']['hostname']}:{app_config['events']['port']}",
-        'group.id': 'event_group',
-        'auto.offset.reset': 'latest',
-        'enable.auto.commit': True
-    }
+    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
     
-    consumer = Consumer(conf)
-    consumer.subscribe([app_config["events"]["topic"]])
+    consumer = AIOKafkaConsumer(
+        app_config["events"]["topic"],
+        bootstrap_servers=hostname,
+        group_id="event_group",
+        auto_offset_reset="latest"
+    )
+    
+    await consumer.start()
     
     try:
-        while True:
-            msg = consumer.poll(1.0)
-            if msg is None:
-                continue
-            
-            if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
-                    continue
-                else:
-                    logger.error(f"Consumer error: {msg.error()}")
-                    break
-                    
+        async for msg in consumer:
+            session = DB_SESSION()
             try:
-                session = DB_SESSION()
-                msg_str = msg.value().decode('utf-8')
-                msg_data = json.loads(msg_str)
-                logger.info(f"Message: {msg_data}")
-                payload = msg_data["payload"]
+                msg_str = msg.value.decode('utf-8')
+                msg = json.loads(msg_str)
+                logger.info(f"Message: {msg}")
+                payload = msg["payload"]
                 
-                if msg_data["type"] == "air_quality":
+                if msg["type"] == "air_quality":
                     aq = AirQuality(payload['trace_id'],
                                   payload['reading_id'],
                                   payload['sensor_id'],
@@ -174,7 +164,7 @@ def process_messages():
                                   payload['o3_level'])
                     session.add(aq)
                     logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
-                elif msg_data["type"] == "weather":
+                elif msg["type"] == "weather":
                     weather = Weather(payload['trace_id'],
                                     payload['reading_id'],
                                     payload['sensor_id'],
@@ -196,17 +186,13 @@ def process_messages():
                 session.rollback()
             finally:
                 session.close()
-                
-    except KafkaException as e:
-        logger.error(f"Kafka error: {str(e)}")
     finally:
-        consumer.close()
+        await consumer.stop()
 
 app = connexion.FlaskApp(__name__, specification_dir='')
 app.add_api("openapi.yml", strict_validation=True, validate_responses=True)
 
 if __name__ == "__main__":
-    t1 = Thread(target=process_messages)
-    t1.setDaemon(True)
-    t1.start()
+    loop = asyncio.get_event_loop()
+    loop.create_task(process_messages())
     app.run(port=8090, host="0.0.0.0")
