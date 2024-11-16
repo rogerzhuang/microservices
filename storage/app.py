@@ -36,11 +36,13 @@ DB_ENGINE = create_engine(
     f"mysql+pymysql://{datastore_config['user']}:{datastore_config['password']}@{datastore_config['hostname']}:{datastore_config['port']}/{datastore_config['db']}",
     pool_size=5,
     max_overflow=10,
-    pool_recycle=3600,  # Recycle connections after 1 hour
+    pool_recycle=300,  # Recycle connections after 5 minutes
     pool_pre_ping=True,  # Enable connection health checks
     pool_timeout=30,     # Timeout for getting connection from pool
     connect_args={
-        'connect_timeout': 10  # Timeout for initial connection
+        'connect_timeout': 10,  # Timeout for initial connection
+        'read_timeout': 30,     # Timeout for read operations
+        'write_timeout': 30     # Timeout for write operations
     }
 )
 Base.metadata.bind = DB_ENGINE
@@ -141,72 +143,95 @@ async def process_messages():
     logger.info("Starting Kafka consumer...")
     hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
     
-    consumer = AIOKafkaConsumer(
-        app_config["events"]["topic"],
-        bootstrap_servers=hostname,
-        group_id="event_group",
-        auto_offset_reset="latest"
-    )
-    
-    logger.info("Connecting to Kafka broker...")
-    await consumer.start()
-    logger.info("Kafka consumer started successfully")
-    
-    try:
-        async for msg in consumer:
-            # Create a new session for each message
-            session = None
+    while True:  # Add outer loop to handle consumer restarts
+        try:
+            consumer = AIOKafkaConsumer(
+                app_config["events"]["topic"],
+                bootstrap_servers=hostname,
+                group_id="event_group",
+                auto_offset_reset="latest"
+            )
+            
+            logger.info("Connecting to Kafka broker...")
+            await consumer.start()
+            logger.info("Kafka consumer started successfully")
+            
             try:
-                session = DB_SESSION()
-                msg_str = msg.value.decode('utf-8')
-                msg = json.loads(msg_str)
-                logger.info(f"Message: {msg}")
-                payload = msg["payload"]
-                
-                if msg["type"] == "air_quality":
-                    aq = AirQuality(payload['trace_id'],
-                                  payload['reading_id'],
-                                  payload['sensor_id'],
-                                  payload['timestamp'],
-                                  payload['pm2_5_concentration'],
-                                  payload['pm10_concentration'],
-                                  payload['co2_level'],
-                                  payload['o3_level'])
-                    session.add(aq)
-                    session.commit()
-                    logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
-                elif msg["type"] == "weather":
-                    weather = Weather(payload['trace_id'],
-                                    payload['reading_id'],
-                                    payload['sensor_id'],
-                                    payload['timestamp'],
-                                    payload['temperature'],
-                                    payload['humidity'],
-                                    payload['wind_speed'],
-                                    payload['noise_level'])
-                    session.add(weather)
-                    session.commit()
-                    logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
-                
-            except OperationalError as e:
-                logger.error(f"Database operational error: {str(e)}")
-                if session:
-                    session.rollback()
-                # Add a small delay before retrying
-                await asyncio.sleep(1)
+                async for msg in consumer:
+                    logger.info(f"Received raw message: {msg}")
+                    session = None
+                    try:
+                        msg_str = msg.value.decode('utf-8')
+                        logger.info(f"Decoded message: {msg_str}")
+                        msg_dict = json.loads(msg_str)
+                        logger.info(f"Parsed message: {msg_dict}")
+                        
+                        # Create new session for each message
+                        session = DB_SESSION()
+                        
+                        payload = msg_dict["payload"]
+                        
+                        if msg_dict["type"] == "air_quality":
+                            try:
+                                aq = AirQuality(payload['trace_id'],
+                                              payload['reading_id'],
+                                              payload['sensor_id'],
+                                              payload['timestamp'],
+                                              payload['pm2_5_concentration'],
+                                              payload['pm10_concentration'],
+                                              payload['co2_level'],
+                                              payload['o3_level'])
+                                session.add(aq)
+                                session.commit()
+                                logger.info(f"Successfully stored air quality event with trace ID: {payload['trace_id']}")
+                            except Exception as e:
+                                logger.error(f"Error processing air quality message: {str(e)}")
+                                raise
+                                
+                        elif msg_dict["type"] == "weather":
+                            try:
+                                weather = Weather(payload['trace_id'],
+                                                payload['reading_id'],
+                                                payload['sensor_id'],
+                                                payload['timestamp'],
+                                                payload['temperature'],
+                                                payload['humidity'],
+                                                payload['wind_speed'],
+                                                payload['noise_level'])
+                                session.add(weather)
+                                session.commit()
+                                logger.info(f"Successfully stored weather event with trace ID: {payload['trace_id']}")
+                            except Exception as e:
+                                logger.error(f"Error processing weather message: {str(e)}")
+                                raise
+                        
+                    except OperationalError as e:
+                        logger.error(f"Database operational error: {str(e)}")
+                        if session:
+                            session.rollback()
+                        # Add exponential backoff
+                        await asyncio.sleep(5)
+                    except Exception as e:
+                        logger.error(f"Processing error: {str(e)}", exc_info=True)
+                        if session:
+                            session.rollback()
+                    finally:
+                        if session:
+                            try:
+                                session.close()
+                                logger.debug("Database session closed successfully")
+                            except Exception as e:
+                                logger.error(f"Error closing session: {str(e)}")
+                    
             except Exception as e:
-                logger.error(f"Processing error: {str(e)}")
-                if session:
-                    session.rollback()
+                logger.error(f"Error in message processing loop: {str(e)}", exc_info=True)
             finally:
-                if session:
-                    session.close()
-    
-    except Exception as e:
-        logger.error(f"Consumer error: {str(e)}")
-    finally:
-        logger.info("Stopping Kafka consumer...")
-        await consumer.stop()
+                logger.info("Stopping Kafka consumer...")
+                await consumer.stop()
+                
+        except Exception as e:
+            logger.error(f"Critical consumer error: {str(e)}", exc_info=True)
+            await asyncio.sleep(5)  # Wait before attempting to restart
 
 def run_consumer():
     """Run the Kafka consumer in the background"""
