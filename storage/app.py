@@ -37,7 +37,11 @@ DB_ENGINE = create_engine(
     pool_size=5,
     max_overflow=10,
     pool_recycle=3600,  # Recycle connections after 1 hour
-    pool_pre_ping=True  # Enable connection health checks
+    pool_pre_ping=True,  # Enable connection health checks
+    pool_timeout=30,     # Timeout for getting connection from pool
+    connect_args={
+        'connect_timeout': 10  # Timeout for initial connection
+    }
 )
 Base.metadata.bind = DB_ENGINE
 DB_SESSION = sessionmaker(bind=DB_ENGINE)
@@ -134,6 +138,7 @@ def get_weather_readings(start_timestamp, end_timestamp):
 
 async def process_messages():
     """ Process event messages """
+    logger.info("Starting Kafka consumer...")
     hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
     
     consumer = AIOKafkaConsumer(
@@ -143,12 +148,16 @@ async def process_messages():
         auto_offset_reset="latest"
     )
     
+    logger.info("Connecting to Kafka broker...")
     await consumer.start()
+    logger.info("Kafka consumer started successfully")
     
     try:
         async for msg in consumer:
-            session = DB_SESSION()
+            # Create a new session for each message
+            session = None
             try:
+                session = DB_SESSION()
                 msg_str = msg.value.decode('utf-8')
                 msg = json.loads(msg_str)
                 logger.info(f"Message: {msg}")
@@ -164,6 +173,7 @@ async def process_messages():
                                   payload['co2_level'],
                                   payload['o3_level'])
                     session.add(aq)
+                    session.commit()
                     logger.info(f"Stored air quality event with trace ID: {payload['trace_id']}")
                 elif msg["type"] == "weather":
                     weather = Weather(payload['trace_id'],
@@ -175,19 +185,27 @@ async def process_messages():
                                     payload['wind_speed'],
                                     payload['noise_level'])
                     session.add(weather)
+                    session.commit()
                     logger.info(f"Stored weather event with trace ID: {payload['trace_id']}")
-                
-                session.commit()
                 
             except OperationalError as e:
                 logger.error(f"Database operational error: {str(e)}")
-                session.rollback()
+                if session:
+                    session.rollback()
+                # Add a small delay before retrying
+                await asyncio.sleep(1)
             except Exception as e:
                 logger.error(f"Processing error: {str(e)}")
-                session.rollback()
+                if session:
+                    session.rollback()
             finally:
-                session.close()
+                if session:
+                    session.close()
+    
+    except Exception as e:
+        logger.error(f"Consumer error: {str(e)}")
     finally:
+        logger.info("Stopping Kafka consumer...")
         await consumer.stop()
 
 def run_consumer():
