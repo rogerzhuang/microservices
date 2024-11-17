@@ -10,3 +10,6 @@ datastore:
 thresholds:
   pm25_max: 35.0  # EPA standard for 24-hour PM2.5
   temperature_max: 30.0  # Celsius
+
+scheduler:
+  period_sec: 5  # Process messages every 5 seconds
