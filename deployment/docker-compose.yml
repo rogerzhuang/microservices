@@ -37,6 +37,15 @@ services:
       kafka:
         condition: service_healthy
 
+  anomaly_detector:
+    image: anomaly_detector
+    restart: always
+    ports:
+      - "8120:8120"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
   dashboard:
     image: dashboard
     restart: always
@@ -45,6 +54,7 @@ services:
     depends_on:
       - "processing"
       - "analyzer"
+      - "anomaly_detector"
 
   kafka:
     image: bitnami/kafka:latest

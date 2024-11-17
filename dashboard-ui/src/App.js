@@ -3,6 +3,7 @@ import './App.css';
 
 import EndpointAnalyzer from './components/EndpointAnalyzer'
 import AppStats from './components/AppStats'
+import AnomalyStats from './components/AnomalyStats'
 
 function App() {
 
@@ -17,6 +18,7 @@ function App() {
             <img src={logo} className="App-logo" alt="logo" height="150px" width="400px"/>
             <div>
                 <AppStats/>
+                <AnomalyStats/>
                 <h1>Analyzer Endpoints</h1>
                 {rendered_endpoints}
             </div>

@@ -1,0 +1,12 @@
+version: 1
+events:
+  hostname: "acit3855-kafka.westus.cloudapp.azure.com"
+  port: 9092
+  topic: "events"
+
+datastore:
+  filename: "anomalies.json"
+
+thresholds:
+  pm25_max: 35.0  # EPA standard for 24-hour PM2.5
+  temperature_max: 30.0  # Celsius
