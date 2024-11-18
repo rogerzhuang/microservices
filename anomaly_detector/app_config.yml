@@ -8,8 +8,8 @@ datastore:
   filename: "anomalies.json"
 
 thresholds:
-  pm25_max: 35.0  # EPA standard for 24-hour PM2.5
-  temperature_max: 30.0  # Celsius
+  pm25_max: 400.0 # EPA standard for 24-hour PM2.5
+  temperature_max: 40.0 # Celsius
 
 scheduler:
-  period_sec: 5  # Process messages every 5 seconds
+  period_sec: 5 # Process messages every 5 seconds
