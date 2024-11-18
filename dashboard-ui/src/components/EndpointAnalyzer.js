@@ -34,24 +34,24 @@ export default function EndpointAnalyzer(props) {
         return (
             <div className="endpoint-box">
                 <h3>{props.endpoint.charAt(0).toUpperCase() + props.endpoint.slice(1)} Reading (Index: {index})</h3>
-                {log && (
+                {log && log.payload && (
                     <div className="endpoint-details">
-                        <p><strong>Reading ID:</strong> {log.reading_id}</p>
-                        <p><strong>Sensor ID:</strong> {log.sensor_id}</p>
-                        <p><strong>Timestamp:</strong> {log.timestamp}</p>
+                        <p><strong>Reading ID:</strong> {log.payload.reading_id}</p>
+                        <p><strong>Sensor ID:</strong> {log.payload.sensor_id}</p>
+                        <p><strong>Timestamp:</strong> {log.payload.timestamp}</p>
                         {props.endpoint === 'air-quality' ? (
                             <>
-                                <p><strong>PM2.5:</strong> {log.pm2_5_concentration} µg/m³</p>
-                                <p><strong>PM10:</strong> {log.pm10_concentration} µg/m³</p>
-                                <p><strong>CO2:</strong> {log.co2_level} ppm</p>
-                                <p><strong>O3:</strong> {log.o3_level} ppm</p>
+                                <p><strong>PM2.5:</strong> {log.payload.pm2_5_concentration} µg/m³</p>
+                                <p><strong>PM10:</strong> {log.payload.pm10_concentration} µg/m³</p>
+                                <p><strong>CO2:</strong> {log.payload.co2_level} ppm</p>
+                                <p><strong>O3:</strong> {log.payload.o3_level} ppm</p>
                             </>
                         ) : (
                             <>
-                                <p><strong>Temperature:</strong> {log.temperature}°C</p>
-                                <p><strong>Humidity:</strong> {log.humidity}%</p>
-                                <p><strong>Wind Speed:</strong> {log.wind_speed} m/s</p>
-                                <p><strong>Noise Level:</strong> {log.noise_level} dB</p>
+                                <p><strong>Temperature:</strong> {log.payload.temperature}°C</p>
+                                <p><strong>Humidity:</strong> {log.payload.humidity}%</p>
+                                <p><strong>Wind Speed:</strong> {log.payload.wind_speed} m/s</p>
+                                <p><strong>Noise Level:</strong> {log.payload.noise_level} dB</p>
                             </>
                         )}
                     </div>
