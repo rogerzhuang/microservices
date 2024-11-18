@@ -1,7 +1,7 @@
 version: 1
 datastore:
   user: roger
-  password: 
+  password: axl320n24h
   hostname: acit3855-kafka.westus.cloudapp.azure.com
   port: 3306
   db: events

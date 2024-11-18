@@ -36,7 +36,7 @@ DB_ENGINE = create_engine(
     f"mysql+pymysql://{datastore_config['user']}:{datastore_config['password']}@{datastore_config['hostname']}:{datastore_config['port']}/{datastore_config['db']}",
     pool_size=5,
     max_overflow=10,
-    pool_recycle=300,  # Recycle connections after 1 hour
+    pool_recycle=300,  # Recycle connections after 5 minutes
     pool_pre_ping=True  # Enable connection health checks
 )
 Base.metadata.bind = DB_ENGINE
