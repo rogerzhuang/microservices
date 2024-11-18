@@ -9,6 +9,7 @@ import datetime
 import os
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
+import pykafka.common
 
 # Load application configurations
 with open('app_config.yml', 'r') as f:
@@ -57,11 +58,11 @@ def process_messages():
         with open(app_config['datastore']['filename'], 'r') as f:
             anomalies = json.load(f)
     
-    # Create consumer that always uses committed offsets
+    # Create consumer with correct offset configuration
     consumer = topic.get_simple_consumer(
         consumer_group=b'anomaly_detector_group',
-        auto_offset_reset='earliest',     # If no committed offset, start from beginning
-        reset_offset_on_start=False,      # Never reset offset, always use committed offset
+        auto_offset_reset=pykafka.common.OffsetType.EARLIEST,
+        reset_offset_on_start=False,
         consumer_timeout_ms=1000
     )
     
