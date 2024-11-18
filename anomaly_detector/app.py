@@ -51,14 +51,21 @@ def process_messages():
     client = KafkaClient(hosts=hostname)
     topic = client.topics[str.encode(app_config["events"]["topic"])]
     
-    # Create consumer
+    # Load existing anomalies
+    anomalies = []
+    if not os.path.exists(app_config['datastore']['filename']):
+        with open(app_config['datastore']['filename'], 'r') as f:
+            anomalies = json.load(f)
+    
+    # Create consumer that always uses committed offsets
     consumer = topic.get_simple_consumer(
-        reset_offset_on_start=True,
+        consumer_group=b'anomaly_detector_group',
+        auto_offset_reset='earliest',     # If no committed offset, start from beginning
+        reset_offset_on_start=False,      # Never reset offset, always use committed offset
         consumer_timeout_ms=1000
     )
     
-    # Start with empty list since we're reading from beginning of topic
-    anomalies = []
+    logger.info("Processing messages from last committed offset or beginning if no offset found")
     
     # Process messages
     for msg in consumer:
