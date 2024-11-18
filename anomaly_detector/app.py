@@ -57,12 +57,8 @@ def process_messages():
         consumer_timeout_ms=1000
     )
     
-    # Initialize anomalies storage
-    if os.path.exists(app_config['datastore']['filename']):
-        with open(app_config['datastore']['filename'], 'r') as f:
-            anomalies = json.load(f)
-    else:
-        anomalies = []
+    # Start with empty list since we're reading from beginning of topic
+    anomalies = []
     
     # Process messages
     for msg in consumer:
