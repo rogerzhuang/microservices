@@ -49,3 +49,44 @@
     margin: 5px 0;
     color: #666;
 }
+
+.endpoint-box {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin: 10px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    width: 80%;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.endpoint-box h3 {
+    color: #333;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.endpoint-details {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    text-align: left;
+}
+
+.endpoint-details p {
+    margin: 5px 0;
+    color: #666;
+}
+
+.endpoint-details strong {
+    color: #333;
+}
+
+@media (max-width: 600px) {
+    .endpoint-details {
+        grid-template-columns: 1fr;
+    }
+}
