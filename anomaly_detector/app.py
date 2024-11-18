@@ -53,7 +53,7 @@ def process_messages():
     
     # Load existing anomalies
     anomalies = []
-    if not os.path.exists(app_config['datastore']['filename']):
+    if os.path.exists(app_config['datastore']['filename']):
         with open(app_config['datastore']['filename'], 'r') as f:
             anomalies = json.load(f)
     
