@@ -63,6 +63,7 @@ def process_messages():
         consumer_group=b'anomaly_detector_group',
         auto_offset_reset=pykafka.common.OffsetType.EARLIEST,
         reset_offset_on_start=False,
+        auto_commit_enable=True,
         consumer_timeout_ms=1000
     )
     
