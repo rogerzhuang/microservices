@@ -70,6 +70,7 @@ services:
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_LOG_DIR=/kafka/kafka-logs
     volumes:
       - /home/azureuser/kafka:/bitnami/kafka
     healthcheck:
