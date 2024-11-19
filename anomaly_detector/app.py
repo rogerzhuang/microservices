@@ -131,7 +131,7 @@ def process_messages():
                         msg['payload']['reading_id'],
                         msg['payload']['trace_id'],
                         'air_quality',
-                        'TooHigh',
+                        'AirQualityTooHigh',
                         f"PM2.5 concentration of {msg['payload']['pm2_5_concentration']} exceeds threshold of {app_config['thresholds']['pm25_max']}",
                         datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     ))
@@ -148,7 +148,7 @@ def process_messages():
                         msg['payload']['reading_id'],
                         msg['payload']['trace_id'],
                         'weather',
-                        'TooHigh',
+                        'WeatherTooHigh',
                         f"Temperature of {msg['payload']['temperature']} exceeds threshold of {app_config['thresholds']['temperature_max']}",
                         datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     ))
