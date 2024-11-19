@@ -100,6 +100,17 @@ def process_messages():
     client = KafkaClient(hosts=hostname)
     topic = client.topics[str.encode(app_config["events"]["topic"])]
     
+    # Create consumer with correct offset configuration
+    consumer = topic.get_simple_consumer(
+        consumer_group=b'anomaly_detector_group',
+        auto_offset_reset=pykafka.common.OffsetType.EARLIEST,
+        reset_offset_on_start=False,
+        auto_commit_enable=True,
+        consumer_timeout_ms=1000
+    )
+    
+    logger.info("Processing messages from last committed offset or beginning if no offset found")
+    
     try:
         conn = sqlite3.connect(app_config['datastore']['filename'])
         c = conn.cursor()
