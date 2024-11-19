@@ -36,8 +36,23 @@ logger.info("Log Conf File: %s" % log_conf_file)
 def init_database():
     """Create the database and stats table if they don't exist"""
     logger.info("Checking if database exists")
+    db_filename = app_config['datastore']['filename']
+    
+    # If database file exists but is corrupted, remove it
+    if os.path.exists(db_filename):
+        try:
+            # Test if file is a valid database
+            conn = sqlite3.connect(db_filename)
+            conn.close()
+        except sqlite3.DatabaseError:
+            logger.warning(f"Corrupted database found. Removing {db_filename}")
+            os.remove(db_filename)
+    
     try:
-        conn = sqlite3.connect(app_config['datastore']['filename'])
+        # Create database directory if it doesn't exist
+        os.makedirs(os.path.dirname(db_filename), exist_ok=True)
+        
+        conn = sqlite3.connect(db_filename)
         c = conn.cursor()
         
         # Create stats table if it doesn't exist
