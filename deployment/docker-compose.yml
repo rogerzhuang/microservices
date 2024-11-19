@@ -2,8 +2,13 @@ services:
   receiver:
     image: receiver
     restart: always
+    environment:
+      - TARGET_ENV=test
     ports:
       - "8080:8080"
+    volumes:
+      - /home/azureuser/config/receiver:/config
+      - /home/azureuser/logs:/logs
     depends_on:
       kafka:
         condition: service_healthy
@@ -11,8 +16,13 @@ services:
   storage:
     image: storage
     restart: always
+    environment:
+      - TARGET_ENV=test
     ports:
       - "8090:8090"
+    volumes:
+      - /home/azureuser/config/storage:/config
+      - /home/azureuser/logs:/logs
     depends_on:
       kafka:
         condition: service_healthy
@@ -22,17 +32,27 @@ services:
   processing:
     image: processing
     restart: always
+    environment:
+      - TARGET_ENV=test
     network_mode: "host"
     ports:
       - "8100:8100"
+    volumes:
+      - /home/azureuser/config/processing:/config
+      - /home/azureuser/logs:/logs
     depends_on:
       - "storage"
 
   analyzer:
     image: analyzer
     restart: always
+    environment:
+      - TARGET_ENV=test
     ports:
       - "8110:8110"
+    volumes:
+      - /home/azureuser/config/analyzer:/config
+      - /home/azureuser/logs:/logs
     depends_on:
       kafka:
         condition: service_healthy
@@ -40,8 +60,13 @@ services:
   anomaly_detector:
     image: anomaly_detector
     restart: always
+    environment:
+      - TARGET_ENV=test
     ports:
       - "8120:8120"
+    volumes:
+      - /home/azureuser/config/anomaly_detector:/config
+      - /home/azureuser/logs:/logs
     depends_on:
       kafka:
         condition: service_healthy
