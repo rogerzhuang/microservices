@@ -48,7 +48,13 @@ def get_anomalies(anomaly_type=None):
     with open(app_config['datastore']['filename'], 'r') as f:
         anomalies = json.load(f)
     
+    # Filter by anomaly type if provided
     if anomaly_type:
+        valid_types = ['AirQualityTooHigh', 'WeatherTooHigh']
+        if anomaly_type not in valid_types:
+            logger.error(f"Invalid anomaly type: {anomaly_type}")
+            return {"message": f"Invalid anomaly type. Must be one of: {valid_types}"}, 400
+            
         anomalies = [a for a in anomalies if a['anomaly_type'] == anomaly_type]
     
     # Sort anomalies from newest to oldest
@@ -56,7 +62,6 @@ def get_anomalies(anomaly_type=None):
     
     logger.info(f"Returning {len(anomalies)} anomalies")
     return anomalies, 200
-
 def process_messages():
     """ Process messages from Kafka and detect anomalies """
     hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
@@ -93,7 +98,7 @@ def process_messages():
                     'event_id': msg['payload']['reading_id'],
                     'trace_id': msg['payload']['trace_id'],
                     'event_type': 'air_quality',
-                    'anomaly_type': 'TooHigh',
+                    'anomaly_type': 'AirQualityTooHigh',
                     'description': f"PM2.5 concentration of {msg['payload']['pm2_5_concentration']} exceeds threshold of {app_config['thresholds']['pm25_max']}",
                     'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
@@ -106,7 +111,7 @@ def process_messages():
                     'event_id': msg['payload']['reading_id'],
                     'trace_id': msg['payload']['trace_id'],
                     'event_type': 'weather',
-                    'anomaly_type': 'TooHigh',
+                    'anomaly_type': 'WeatherTooHigh',
                     'description': f"Temperature of {msg['payload']['temperature']} exceeds threshold of {app_config['thresholds']['temperature_max']}",
                     'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
