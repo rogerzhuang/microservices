@@ -68,7 +68,7 @@ services:
     volumes:
       - /home/azureuser/config/anomaly_detector:/config
       - /home/azureuser/logs:/logs
-      - anomaly-db:/data
+      - anomaly-ds:/data
     depends_on:
       kafka:
         condition: service_healthy
@@ -130,4 +130,4 @@ services:
 volumes:
   my-db:
   processing-db:
-  anomaly-db:
+  anomaly-ds:

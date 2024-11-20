@@ -5,7 +5,7 @@ events:
   topic: "events"
 
 datastore:
-  filename: /data/anomalies.sqlite
+  filename: /data/anomalies.json
 
 thresholds:
   pm25_max: 400.0 # EPA standard for 24-hour PM2.5
