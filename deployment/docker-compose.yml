@@ -1,7 +1,6 @@
 services:
   receiver:
     image: receiver
-    container_name: receiver
     restart: always
     environment:
       - TARGET_ENV=test
@@ -18,7 +17,6 @@ services:
 
   storage:
     image: storage
-    container_name: storage
     restart: always
     environment:
       - TARGET_ENV=test
@@ -37,7 +35,6 @@ services:
 
   processing:
     image: processing
-    container_name: processing
     restart: always
     environment:
       - TARGET_ENV=test
@@ -54,7 +51,6 @@ services:
 
   analyzer:
     image: analyzer
-    container_name: analyzer
     restart: always
     environment:
       - TARGET_ENV=test
@@ -71,7 +67,6 @@ services:
 
   anomaly_detector:
     image: anomaly_detector
-    container_name: anomaly_detector
     restart: always
     environment:
       - TARGET_ENV=test
@@ -89,7 +84,6 @@ services:
 
   dashboard:
     image: dashboard
-    container_name: dashboard
     restart: always
     ports:
       - "3000"
