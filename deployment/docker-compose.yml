@@ -1,11 +1,14 @@
 services:
   receiver:
     image: receiver
+    container_name: receiver
     restart: always
     environment:
       - TARGET_ENV=test
     ports:
-      - "8080:8080"
+      - "8080"
+    networks:
+      - "api.network"
     volumes:
       - /home/azureuser/config/receiver:/config
       - /home/azureuser/logs:/logs
@@ -15,11 +18,14 @@ services:
 
   storage:
     image: storage
+    container_name: storage
     restart: always
     environment:
       - TARGET_ENV=test
     ports:
-      - "8090:8090"
+      - "8090"
+    networks:
+      - "api.network"
     volumes:
       - /home/azureuser/config/storage:/config
       - /home/azureuser/logs:/logs
@@ -31,12 +37,15 @@ services:
 
   processing:
     image: processing
+    container_name: processing
     restart: always
     environment:
       - TARGET_ENV=test
     network_mode: "host"
     ports:
-      - "8100:8100"
+      - "8100"
+    networks:
+      - "api.network"
     volumes:
       - /home/azureuser/config/processing:/config
       - /home/azureuser/logs:/logs
@@ -46,11 +55,14 @@ services:
 
   analyzer:
     image: analyzer
+    container_name: analyzer
     restart: always
     environment:
       - TARGET_ENV=test
     ports:
-      - "8110:8110"
+      - "8110"
+    networks:
+      - "api.network"
     volumes:
       - /home/azureuser/config/analyzer:/config
       - /home/azureuser/logs:/logs
@@ -60,11 +72,14 @@ services:
 
   anomaly_detector:
     image: anomaly_detector
+    container_name: anomaly_detector
     restart: always
     environment:
       - TARGET_ENV=test
     ports:
-      - "8120:8120"
+      - "8120"
+    networks:
+      - "api.network"
     volumes:
       - /home/azureuser/config/anomaly_detector:/config
       - /home/azureuser/logs:/logs
@@ -75,16 +90,39 @@ services:
 
   dashboard:
     image: dashboard
+    container_name: dashboard
     restart: always
     ports:
-      - "3000:3000"
+      - "3000"
+    networks:
+      - "api.network"
     depends_on:
       - "processing"
       - "analyzer"
       - "anomaly_detector"
 
+  nginx:
+    image: nginx:latest
+    # Connects the conf file of the container to the conf file in our folder
+    volumes:
+      - /home/azureuser/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    # It will start up the nginx only when all api containers have started  
+    depends_on:
+      - "receiver"
+      - "storage" 
+      - "processing"
+      - "analyzer"
+      - "anomaly_detector"
+      - "dashboard-ui"
+    # Connects the port 80 of the nginx container to localhost:80 or localhost
+    ports:
+      - "80:80"
+    networks:
+      - "api.network"
+
   kafka:
     image: bitnami/kafka:latest
+    container_name: kafka
     restart: always
     ports:
       - "9092:9092"
@@ -108,6 +146,7 @@ services:
 
   db:
     image: mysql:5.7
+    container_name: db
     restart: always
     environment:
       MYSQL_DATABASE: "events"
@@ -131,3 +170,6 @@ volumes:
   my-db:
   processing-db:
   anomaly-ds:
+
+networks:
+  api.network:

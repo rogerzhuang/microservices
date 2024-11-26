@@ -118,8 +118,9 @@ def get_event_stats():
         return {"message": "Error retrieving stats"}, 500
 
 app = connexion.FlaskApp(__name__, specification_dir='')
-CORS(app.app)
-app.add_api("openapi.yml", strict_validation=True, validate_responses=True)
+if "TARGET_ENV" not in os.environ or os.environ["TARGET_ENV"] != "test":
+    CORS(app.app)
+app.add_api("openapi.yml", base_path="/analyzer", strict_validation=True, validate_responses=True)
 
 if __name__ == "__main__":
     app.run(port=8110, host="0.0.0.0")
