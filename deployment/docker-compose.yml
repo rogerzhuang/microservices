@@ -96,6 +96,7 @@ services:
 
   nginx:
     image: nginx:latest
+    restart: always
     # Connects the conf file of the container to the conf file in our folder
     volumes:
       - /home/azureuser/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
