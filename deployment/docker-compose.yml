@@ -115,7 +115,6 @@ services:
 
   kafka:
     image: bitnami/kafka:latest
-    container_name: kafka
     restart: always
     ports:
       - "9092:9092"
@@ -143,7 +142,6 @@ services:
 
   db:
     image: mysql:5.7
-    container_name: db
     restart: always
     environment:
       MYSQL_DATABASE: "events"
