@@ -9,7 +9,7 @@ export default function EndpointAnalyzer(props) {
 	const rand_val = Math.floor(Math.random() * 100); // Get a random event from the event store
 
     const getAnalyzer = () => {
-        fetch(`http://acit3855-kafka.westus.cloudapp.azure.com:8110/${props.endpoint}?index=${rand_val}`)
+        fetch(`http://acit3855-kafka.westus.cloudapp.azure.com/analyzer/${props.endpoint}?index=${rand_val}`)
             .then(res => res.json())
             .then((result)=>{
 				console.log("Received Analyzer Results for " + props.endpoint)

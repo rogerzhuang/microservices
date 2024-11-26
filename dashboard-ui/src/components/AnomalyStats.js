@@ -8,7 +8,7 @@ export default function AnomalyStats() {
 
     const getAnomalies = () => {
         // Get all anomalies and filter for the most recent of each type
-        fetch(`http://acit3855-kafka.westus.cloudapp.azure.com:8120/anomalies`)
+        fetch(`http://acit3855-kafka.westus.cloudapp.azure.com/anomaly_detector/anomalies`)
             .then(res => res.json())
             .then((result)=>{
                 console.log("Received Anomalies")
