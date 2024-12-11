@@ -1,0 +1,6 @@
+{
+    "receiver": "Healthy",
+    "storage": "Storage has 1430 air quality and 1430 weather events",
+    "processing": "Processing has 1430 air quality and 1430 weather events",
+    "analyzer": "Analyzer has 225 air quality and 225 weather events"
+}

@@ -175,11 +175,6 @@ services:
     volumes:
       - /home/azureuser/config/check:/config
       - /home/azureuser/logs:/logs
-    depends_on:
-      - "receiver"
-      - "storage"
-      - "processing"
-      - "analyzer"
 
 volumes:
   my-db:
