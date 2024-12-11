@@ -108,6 +108,7 @@ services:
       - "analyzer"
       - "anomaly_detector"
       - "dashboard"
+      - "check"
     # Connects the port 80 of the nginx container to localhost:80 or localhost
     ports:
       - "80:80"
@@ -161,6 +162,24 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  check:
+    image: check
+    restart: always
+    environment:
+      - TARGET_ENV=test
+    ports:
+      - "8130"
+    networks:
+      - "api.network"
+    volumes:
+      - /home/azureuser/config/check:/config
+      - /home/azureuser/logs:/logs
+    depends_on:
+      - "receiver"
+      - "storage"
+      - "processing"
+      - "analyzer"
 
 volumes:
   my-db:
