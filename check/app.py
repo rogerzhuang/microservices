@@ -117,9 +117,23 @@ def init_scheduler():
                   seconds=app_config['scheduler']['period_sec'])
     sched.start()
 
+def init_status_file():
+    """ Initialize the status file if it doesn't exist """
+    if not os.path.exists(app_config['datastore']['status_file']):
+        initial_status = {
+            "receiver": "Unavailable",
+            "storage": "Unavailable",
+            "processing": "Unavailable",
+            "analyzer": "Unavailable"
+        }
+        with open(app_config['datastore']['status_file'], 'w') as f:
+            json.dump(initial_status, f, indent=4)
+        logger.info("Initialized status file")
+
 app = connexion.FlaskApp(__name__, specification_dir='')
 app.add_api("openapi.yml", base_path="/check", strict_validation=True, validate_responses=True)
 
 if __name__ == "__main__":
+    init_status_file()
     init_scheduler()
     app.run(port=8130, host="0.0.0.0")
