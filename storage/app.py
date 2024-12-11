@@ -199,6 +199,31 @@ def process_messages():
         finally:
             session.close()
 
+def get_stats():
+    """ Gets the count of air quality and weather readings """
+    logger.info("Request received for event stats")
+
+    session = DB_SESSION()
+
+    try:
+        air_quality_count = session.query(AirQuality).count()
+        weather_count = session.query(Weather).count()
+
+        stats = {
+            "num_air_quality_readings": air_quality_count,
+            "num_weather_readings": weather_count
+        }
+
+        logger.debug(f"Found {air_quality_count} air quality readings and {weather_count} weather readings")
+        
+        return stats, 200
+
+    except Exception as e:
+        logger.error(f"Error getting stats: {str(e)}")
+        return {"message": "Error getting stats"}, 500
+    finally:
+        session.close()
+
 app = connexion.FlaskApp(__name__, specification_dir='')
 app.add_api("openapi.yml", base_path="/storage", strict_validation=True, validate_responses=True)
 

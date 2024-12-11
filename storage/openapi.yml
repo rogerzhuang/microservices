@@ -92,6 +92,21 @@ paths:
                   message:
                     type: string
 
+  /stats:
+    get:
+      tags:
+        - devices
+      summary: gets event counts
+      operationId: app.get_stats
+      description: Gets the count of air quality and weather events in the database
+      responses:
+        '200':
+          description: Successfully returned the event counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+
 components:
   schemas:
     AirQualityData:
@@ -197,3 +212,18 @@ components:
           description: Unique identifier for tracing the event across services
           format: uuid
           example: 123e4567-e89b-12d3-a456-426614174000
+
+    Stats:
+      type: object
+      required:
+        - num_air_quality_readings
+        - num_weather_readings
+      properties:
+        num_air_quality_readings:
+          type: integer
+          description: Number of air quality readings
+          example: 100
+        num_weather_readings:
+          type: integer
+          description: Number of weather readings
+          example: 150

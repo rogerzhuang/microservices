@@ -70,6 +70,10 @@ def submit_weather_data(body):
     logger.info(f"Returned event weather response (Id: {trace_id}) with status 201")
     return NoContent, 201
 
+def health_check():
+    """Returns health status"""
+    return NoContent, 200
+
 app = connexion.FlaskApp(__name__, specification_dir='')
 app.add_api("openapi.yml", base_path="/receiver", strict_validation=True, validate_responses=True)
 

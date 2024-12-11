@@ -8,6 +8,8 @@ info:
 tags:
   - name: devices
     description: Operations related to sensor devices
+  - name: health
+    description: Operations related to service health
 
 paths:
   /air-quality:
@@ -47,6 +49,17 @@ paths:
           description: Successful submission
         "400":
           description: Invalid input
+
+  /check:
+    get:
+      tags:
+        - health
+      summary: Health check endpoint
+      description: Returns 200 if the service is running
+      operationId: app.health_check
+      responses:
+        "200":
+          description: Service is healthy
 
 components:
   schemas:
