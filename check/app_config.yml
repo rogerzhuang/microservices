@@ -1,0 +1,11 @@
+version: 1
+scheduler:
+  period_sec: 10
+urls:
+  receiver: http://acit3855-kafka.westus.cloudapp.azure.com/receiver/check
+  storage: http://acit3855-kafka.westus.cloudapp.azure.com/storage/stats
+  processing: http://acit3855-kafka.westus.cloudapp.azure.com/processing/stats
+  analyzer: http://acit3855-kafka.westus.cloudapp.azure.com/analyzer/stats
+timeout: 2
+datastore:
+  status_file: status.json
