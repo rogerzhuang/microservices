@@ -85,7 +85,7 @@ def check_services():
                               timeout=app_config['timeout'])
         if response.status_code == 200:
             analyzer_json = response.json()
-            analyzer_status = f"Analyzer has {analyzer_json['num_air_quality_readings']} air quality and {analyzer_json['num_weather_readings']} weather events"
+            analyzer_status = f"Analyzer has {analyzer_json['num_air_quality']} air quality and {analyzer_json['num_weather']} weather events"
             logger.info("Analyzer is Healthy")
         else:
             logger.info("Analyzer returning non-200 response")
